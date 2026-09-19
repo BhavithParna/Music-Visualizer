@@ -5,6 +5,7 @@ dist/
 .env
 .env.local
 apps/renderer/dist/
+apps/renderer/dist-types/
 fixtures/*.mp3
 fixtures/*.m4a
 fixtures/*.flac

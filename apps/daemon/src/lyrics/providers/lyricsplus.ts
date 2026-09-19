@@ -1,6 +1,7 @@
 import type { LyricDoc, LyricLine, LyricWord } from '@lyricroom/shared';
 import { LYRICSPLUS_BASES } from '../../config.js';
 import { fetchJson, qs } from '../http.js';
+import { queryVariants } from '../title.js';
 import { finalizeDoc } from '../normalize.js';
 import type { Provider, ProviderContext } from './types.js';
 
@@ -62,23 +63,28 @@ export const lyricsPlusProvider: Provider = {
   tier: 3,
   async resolve({ track }: ProviderContext): Promise<LyricDoc | null> {
     if (!track.title) return null;
-    const query = qs({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: Math.round(track.durationMs / 1000) || undefined,
-    });
+    const durationSec = Math.round(track.durationMs / 1000) || undefined;
 
-    let lastErr: unknown = null;
-    for (let i = 0; i < LYRICSPLUS_BASES.length; i += 1) {
-      const idx = (preferredBase + i) % LYRICSPLUS_BASES.length;
-      const base = LYRICSPLUS_BASES[idx]!;
-      try {
-        const data = await fetchJson<KpoeResponse>(`${base}/v2/lyrics/get?${query}`);
-        if (data.error || !data.lyrics?.length) continue;
-        const lines = toLines(data, data.metadata?.songParts);
-        if (!lines.length) continue;
+    // A raw player title such as "Song (feat. X)" is not how lyric databases
+    // index the track, so each simplified variant gets its own attempt.
+    for (const variant of queryVariants(track.title, track.artist, track.album)) {
+      const query = qs({ ...variant, duration: durationSec });
+
+      for (let i = 0; i < LYRICSPLUS_BASES.length; i += 1) {
+        const idx = (preferredBase + i) % LYRICSPLUS_BASES.length;
+        const base = LYRICSPLUS_BASES[idx]!;
+        let data: KpoeResponse;
+        try {
+          data = await fetchJson<KpoeResponse>(`${base}/v2/lyrics/get?${query}`);
+        } catch {
+          continue; // instance down or rate limited: try the next one
+        }
+        // The instance answered, so it is healthy even if this title missed.
         preferredBase = idx;
+        if (data.error || !data.lyrics?.length) break;
+        const lines = toLines(data, data.metadata?.songParts);
+        if (!lines.length) break;
+
         const isWord = (data.type ?? '').toLowerCase() === 'word'
           || lines.some((l) => l.words.length > 1);
         return finalizeDoc({
@@ -90,11 +96,8 @@ export const lyricsPlusProvider: Provider = {
           confidence: isWord ? 0.93 : 0.7,
           wordsInterpolated: !isWord,
         });
-      } catch (err) {
-        lastErr = err;
       }
     }
-    if (lastErr) return null;
     return null;
   },
 };

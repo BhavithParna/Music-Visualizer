@@ -122,7 +122,7 @@ export function paletteFromImage(img: HTMLImageElement): StagePalette {
     dim: hslToCss(ah, 0.18, 0.9, 0.3),
     luminance,
     // Bright covers need a heavier scrim to keep cream type legible over them.
-    scrim: clamp(0.4 + luminance * 0.42, 0.4, 0.82),
+    scrim: clamp(0.3 + luminance * 0.4, 0.3, 0.72),
   };
 }
 

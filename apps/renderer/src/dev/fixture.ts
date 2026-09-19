@@ -14,6 +14,14 @@ const VERSE: [string, number, number[]][] = [
   ['Paradise on fire', 19000, [19000, 19700, 20100, 22000]],
   ['Run', 22400, [22400, 24200]],
   ['Winning in the dark', 24600, [24600, 25400, 25800, 27600]],
+  // A deliberately long bar: the regression guard for phrase splitting and the
+  // measured fit, which is where a real rap line used to run off the frame.
+  [
+    'They put a lock on the city so nobody ever gets to leave again',
+    28000,
+    [28000, 28300, 28600, 28900, 29200, 29500, 29800, 30200, 30600, 31000,
+     31400, 31800, 32200, 33600],
+  ],
 ];
 
 function buildLines(): LyricLine[] {
@@ -49,7 +57,7 @@ export const FIXTURE_TRACK: NowPlaying = {
   title: 'Demo Composition',
   artist: 'LyricRoom',
   album: 'Fixture',
-  durationMs: 29_000,
+  durationMs: 35_000,
   source: 'local',
   playerName: 'fixture',
 };
@@ -60,4 +68,4 @@ export const FIXTURE_GLYPHS: Record<number, string> = {
   7: '\u{1F3C6}',
 };
 
-export const FIXTURE_LOOP_MS = 29_000;
+export const FIXTURE_LOOP_MS = 35_000;

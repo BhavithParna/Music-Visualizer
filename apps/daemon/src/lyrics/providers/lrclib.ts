@@ -3,6 +3,7 @@ import { LRCLIB_BASE } from '../../config.js';
 import { fetchJson, qs } from '../http.js';
 import { finalizeDoc } from '../normalize.js';
 import { parseLrc } from '../parse/lrc.js';
+import { primaryArtist, simplifyTitle as simplify } from '../title.js';
 import type { Provider, ProviderContext } from './types.js';
 
 interface LrclibRecord {
@@ -14,16 +15,6 @@ interface LrclibRecord {
   instrumental?: boolean;
   plainLyrics?: string | null;
   syncedLyrics?: string | null;
-}
-
-/** Strip the decorations that stop an exact-match lookup from landing. */
-function simplify(title: string): string {
-  return title
-    .replace(/\s*[-–]\s*(?:\d{4}\s*)?(?:remaster(?:ed)?|remix|radio edit|live|mono|stereo|version|edit)\b.*$/i, '')
-    .replace(/\s*[([](?:feat|ft|with|prod)\.?[^)\]]*[)\]]/gi, '')
-    .replace(/\s*[([][^)\]]*(?:remaster|version|edit|live)[^)\]]*[)\]]/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 function score(rec: LrclibRecord, track: ProviderContext['track']): number {
@@ -85,6 +76,7 @@ export const lrclibProvider: Provider = {
       { artist_name: track.artist, track_name: track.title, album_name: track.album, duration: durSec || undefined },
       { artist_name: track.artist, track_name: track.title, duration: durSec || undefined },
       { artist_name: track.artist, track_name: simplify(track.title) },
+      { artist_name: primaryArtist(track.artist), track_name: simplify(track.title) },
     ];
 
     for (const params of attempts) {

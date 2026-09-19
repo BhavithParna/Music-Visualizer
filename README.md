@@ -18,6 +18,9 @@ node apps/daemon/dist/index.js      # terminal 1: the daemon
 deploy/linux/launch-kiosk.sh        # terminal 2: the display
 ```
 
+Add `--windowed` to the launcher to get an ordinary window instead of a kiosk,
+which is what you want when the display is also the machine you work on.
+
 Then play something. Open `http://localhost:8321/remote` on your phone for
 transport, sync nudging and display mode.
 
@@ -80,6 +83,11 @@ lowest-round-trip sample wins.
 | 4 | lrcmux | word | KuGou excluded by default (machine-transcribed, often confidently wrong). |
 | 5 | LRCLIB | line | Open and near-universal. Word timings are interpolated from line spans. |
 
+Player metadata is not how lyric databases index a track, so every provider
+retries with simplified queries -- featured artists, remaster and edit tags and
+edition suffixes stripped, and the artist list cut to its first name -- stopping
+at the first hit, which keeps the common case to a single request.
+
 The cascade stops at the first word-level hit and keeps the best line-level
 result as a running fallback, so a miss at the top never costs the safety net at
 the bottom. A document whose last line starts more than 15 s past the end of the
@@ -93,11 +101,21 @@ timings just advertises the error.
 
 ## The look
 
-- One **hero** word per line, sized by how long it is *held* relative to its
+- The screen holds a **phrase** -- two to four words -- never a whole lyric line.
+  A line is cut at its natural silences and at a fixed ink budget, and the
+  pieces play in turn. Rendering a whole bar at once is what makes a rap line
+  overflow the frame and read as a subtitle rather than as a composition.
+- One **hero** word per phrase, sized by how long it is *held* relative to its
   neighbours, so a dense rap line and a held ballad line both compose well. A
   stopword can never become the hero, however long a provider stretches it.
-- Rows are packed to a target width, then the whole line is scaled to fit, so
-  short lines fill the frame and long lines stay readable.
+- Rows are packed to a target width and scaled to fit from estimated character
+  widths, then **measured in the document** and shrunk if the estimate was
+  optimistic, so a phrase can never run off the edge of the frame.
+- Entry is anchored to the phrase and the karaoke sweep to the word: the whole
+  composition cascades in together, then the highlight tracks the actual vocal.
+  Waiting for each word to be sung before drawing it leaves the frame half empty.
+- A phrase is told to leave before the next one lands, so a cut reads as a cut
+  rather than as two compositions dissolving through each other.
 - **Echo trails** replay the entry a few frames late. That temporal lag is what
   reads as motion rather than as a drop shadow.
 - **Glyphs** are scarce on purpose: at most one per line, on a minority of lines,
@@ -168,6 +186,6 @@ reference/       the reel this was modelled on
 ## Tests
 
 ```bash
-npm test         # parser and timing-normalisation tests
+npm test         # parsers, timing normalisation, phrase splitting, title queries
 npm run typecheck
 ```

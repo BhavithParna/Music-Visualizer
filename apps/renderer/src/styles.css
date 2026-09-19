@@ -7,8 +7,8 @@
   --ink: #f1efe8;
   --accent: #e8b86d;
   --dim: rgba(241, 239, 232, 0.28);
-  --scrim: 0.55;
-  --art-blur: 7px;
+  --scrim: 0.44;
+  --art-blur: 4px;
 
   --hero-family: 'Archivo Black', 'Inter Display', 'Inter Variable', system-ui, sans-serif;
   --body-family: 'Inter Variable', 'Inter Display', system-ui, sans-serif;
@@ -42,7 +42,7 @@ body { position: relative; }
   left: 50%;
   width: 64px;
   height: 64px;
-  filter: blur(var(--art-blur)) saturate(1.35);
+  filter: blur(var(--art-blur)) saturate(1.5) contrast(1.08);
   transform-origin: center;
   will-change: transform;
   opacity: 0;
@@ -83,13 +83,32 @@ body { position: relative; }
 #type {
   position: fixed;
   inset: 0;
+  /* A phrase that overshoots on entry is clipped, never scrolled. */
+  overflow: hidden;
   z-index: 2;
+  pointer-events: none;
+}
+
+/*
+ * One phrase fills the frame on its own.
+ *
+ * Every phrase is absolutely positioned and vertically centred inside #type, so
+ * the one arriving never shoves the one still leaving. In normal flow the two
+ * would share the column for the ~400 ms they overlap and the whole composition
+ * would visibly jump on every cut.
+ */
+.line {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 0.02em;
+  /* The margin lives here, not on #type: an absolutely positioned child is
+   * placed against the padding box, so padding up there would buy nothing. */
   padding: 4vmin 5vmin;
-  pointer-events: none;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
 }
 
 .row {

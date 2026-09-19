@@ -1,5 +1,6 @@
 import type { LyricDoc, NowPlaying, SceneMode } from '@lyricroom/shared';
 import { layoutLine } from './layout/engine.js';
+import { buildPhrases, type Phrase } from './layout/phrases.js';
 import { LineView } from './type/word.js';
 
 /** How long the stage stays dark after playback stops before it becomes idle. */
@@ -26,12 +27,13 @@ export class SceneDirector {
   private cardEl = document.getElementById('card') as HTMLElement;
 
   private doc: LyricDoc | null = null;
+  private phrases: Phrase[] = [];
   private meta: LineMeta[] = [];
   private offsetMs = 0;
   private track: NowPlaying | null = null;
   private glyphs: Record<number, string> = {};
 
-  private views = new Map<number, LineView>();
+  private views = new Map<string, LineView>();
   private lastExit = { x: 0, y: 1 };
   private mode: SceneMode | 'auto' = 'auto';
   private pausedSince: number | null = null;
@@ -51,6 +53,7 @@ export class SceneDirector {
     if (track?.trackKey !== this.track?.trackKey) {
       this.clearViews();
       this.doc = null;
+      this.phrases = [];
       this.meta = [];
       this.glyphs = {};
     }
@@ -63,6 +66,7 @@ export class SceneDirector {
     this.offsetMs = offsetMs;
     this.clearViews();
     this.meta = doc ? this.buildMeta(doc) : [];
+    this.phrases = doc ? buildPhrases(doc.lines) : [];
   }
 
   setGlyphs(glyphs: Record<number, string>): void {
@@ -139,24 +143,24 @@ export class SceneDirector {
   }
 
   private updateLines(posMs: number, mode: SceneMode): void {
-    const doc = this.doc;
-    if (!doc) return;
+    if (!this.phrases.length) return;
 
-    // Spawn any line whose entry has started.
-    for (let i = 0; i < doc.lines.length; i += 1) {
-      const line = doc.lines[i]!;
-      if (this.views.has(i)) continue;
-      if (posMs < line.startMs - 400) continue;
-      if (posMs > line.endMs + 250) continue;
+    for (const phrase of this.phrases) {
+      const key = `${phrase.lineIndex}:${phrase.phraseIndex}`;
+      if (this.views.has(key)) continue;
+      if (posMs < phrase.startMs - 400) continue;
+      if (posMs > phrase.endMs + 250) continue;
 
-      const meta = this.meta[i] ?? { intensity: 0.5, invert: false };
-      const laid = layoutLine(line, {
+      const meta = this.meta[phrase.lineIndex] ?? { intensity: 0.5, invert: false };
+      const laid = layoutLine(phrase, {
         portrait: this.portrait,
         intensity: meta.intensity,
-        ...(meta.invert ? { invert: true } : {}),
-        ...(meta.glyph ? { glyph: meta.glyph } : {}),
+        // The hook treatment and the glyph belong to the line, so only the
+        // phrase that carries them gets them -- never every phrase in the bar.
+        ...(meta.invert && phrase.carriesGlyph ? { invert: true } : {}),
+        ...(meta.glyph && phrase.carriesGlyph ? { glyph: meta.glyph } : {}),
       });
-      const view = new LineView(line, laid, {
+      const view = new LineView(phrase, laid, {
         enterFrom: this.lastExit,
         // Interpolated timings are a guess, so the motion stays calmer and the
         // trails come off -- aggressive per-word motion would advertise the error.
@@ -164,13 +168,16 @@ export class SceneDirector {
       });
       this.lastExit = view.exitVector;
       this.typeEl.appendChild(view.el);
-      this.views.set(i, view);
+      // Measure now that it is in the document; estimated widths are never
+      // exact and a bar that overflows the frame is the worst failure there is.
+      view.fitToFrame(this.typeEl);
+      this.views.set(key, view);
     }
 
-    for (const [index, view] of this.views) {
+    for (const [key, view] of this.views) {
       if (!view.update(posMs)) {
         view.destroy();
-        this.views.delete(index);
+        this.views.delete(key);
       }
     }
   }
