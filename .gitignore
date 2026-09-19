@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.cache/
+.env
+.env.local
+apps/renderer/dist/
+fixtures/*.mp3
+fixtures/*.m4a
+fixtures/*.flac

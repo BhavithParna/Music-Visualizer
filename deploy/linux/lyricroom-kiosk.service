@@ -1,0 +1,15 @@
+[Unit]
+Description=LyricRoom kiosk display
+After=lyricroom-daemon.service graphical-session.target
+Requires=lyricroom-daemon.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/Music Visualizer
+ExecStart=%h/Documents/Music Visualizer/deploy/linux/launch-kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

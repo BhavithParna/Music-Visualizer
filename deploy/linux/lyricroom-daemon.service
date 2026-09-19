@@ -1,0 +1,17 @@
+[Unit]
+Description=LyricRoom daemon (now-playing + lyric resolution)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/Music Visualizer
+ExecStart=/usr/bin/node --enable-source-maps apps/daemon/dist/index.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+# Uncomment to point at a self-hosted lyrics instance:
+# Environment=LYRICROOM_LYRICSPLUS=http://localhost:8787
+
+[Install]
+WantedBy=graphical-session.target

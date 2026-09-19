@@ -1,0 +1,23 @@
+{
+  "name": "@lyricroom/daemon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node --enable-source-maps dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "now": "tsx src/now.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@lyricroom/shared": "*",
+    "fast-xml-parser": "^5.11.1",
+    "music-metadata": "^11.15.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}

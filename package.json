@@ -1,0 +1,29 @@
+{
+  "name": "lyricroom",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Always-on kinetic-typography lyric visualizer for the room",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w @lyricroom/shared && npm run build -w @lyricroom/daemon && npm run build -w @lyricroom/renderer",
+    "daemon": "npm run start -w @lyricroom/daemon",
+    "daemon:dev": "npm run dev -w @lyricroom/daemon",
+    "daemon:now": "npm run now -w @lyricroom/daemon",
+    "dev": "npm run dev -w @lyricroom/renderer",
+    "test": "vitest run",
+    "typecheck": "tsc -b --pretty"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,231 @@
+@import '@fontsource/archivo-black/400.css';
+@import '@fontsource-variable/inter/index.css';
+
+:root {
+  /* Overwritten per track from the album-art palette. */
+  --stage: #0b0b0c;
+  --ink: #f1efe8;
+  --accent: #e8b86d;
+  --dim: rgba(241, 239, 232, 0.28);
+  --scrim: 0.55;
+  --art-blur: 7px;
+
+  --hero-family: 'Archivo Black', 'Inter Display', 'Inter Variable', system-ui, sans-serif;
+  --body-family: 'Inter Variable', 'Inter Display', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--body-family);
+  cursor: none;
+}
+
+body { position: relative; }
+
+/* ---------------------------------------------------------------- stage --- */
+
+#stage { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--stage); }
+
+/*
+ * The album art is drawn into a 64px canvas and blurred THERE, then scaled up
+ * by the compositor. Blurring 4096 pixels of a 4K panel every frame would cost
+ * millions of samples; blurring 64 costs nothing and looks identical once soft.
+ */
+#art {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 64px;
+  height: 64px;
+  filter: blur(var(--art-blur)) saturate(1.35);
+  transform-origin: center;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+#art.on { opacity: 1; }
+
+#stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--stage) 78%, transparent),
+    color-mix(in srgb, var(--stage) 92%, transparent));
+  opacity: var(--scrim);
+}
+
+#grain {
+  position: absolute;
+  inset: -50%;
+  background-image: var(--grain-src);
+  background-size: 180px 180px;
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  will-change: transform;
+}
+
+#vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 95% at 50% 45%, transparent 38%, rgba(0, 0, 0, 0.62) 100%);
+}
+
+/* ----------------------------------------------------------------- type --- */
+
+#type {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.02em;
+  padding: 4vmin 5vmin;
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.22em;
+  width: 100%;
+  line-height: 0.88;
+}
+.row[data-align='left']   { justify-content: flex-start; }
+.row[data-align='center'] { justify-content: center; }
+.row[data-align='right']  { justify-content: flex-end; }
+
+.word {
+  position: relative;
+  display: inline-block;
+  white-space: pre;
+  font-family: var(--hero-family);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  transform-origin: 50% 60%;
+  will-change: transform, opacity;
+  /* The glyph itself is painted by .face; .word only carries layout + motion. */
+}
+
+.word[data-tier='support'],
+.word[data-tier='connective'] {
+  font-family: var(--body-family);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.face {
+  display: block;
+  color: var(--ink);
+  will-change: opacity, filter;
+}
+
+/* Karaoke sweep: the sung part is solid, the rest is held back. */
+.face.sweep {
+  background-image: linear-gradient(90deg, var(--ink) 0 var(--p), var(--dim) var(--p) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * Echo trail. Copies sit behind the face at the same origin and replay the
+ * same motion a few frames late, which is what reads as motion blur rather
+ * than as a static drop shadow.
+ */
+.echo {
+  position: absolute;
+  inset: 0;
+  color: var(--accent);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.echo.outline {
+  color: transparent;
+  -webkit-text-stroke: 0.018em var(--accent);
+}
+
+/* Inverted hook word: a cream box wipes open, then dark type fades in. */
+.word[data-invert='1'] .box {
+  position: absolute;
+  inset: -0.06em -0.14em;
+  background: var(--ink);
+  transform-origin: left center;
+  will-change: transform;
+  z-index: 0;
+}
+.word[data-invert='1'] .face { position: relative; z-index: 1; color: var(--stage); }
+.word[data-invert='1'] .face.sweep { background-image: none; color: var(--stage); }
+
+.glyph {
+  display: inline-block;
+  font-family: 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif;
+  font-size: 0.52em;
+  vertical-align: 0.24em;
+  margin-left: 0.14em;
+  transform-origin: 50% 70%;
+  will-change: transform, opacity;
+  filter: saturate(0.82) contrast(1.05);
+}
+
+/* ----------------------------------------------------------------- card --- */
+
+#card {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.2vmin;
+  text-align: center;
+  padding: 6vmin;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+#card.on { opacity: 1; }
+#card[hidden] { display: none; }
+#card .cover {
+  width: min(34vmin, 42vh);
+  aspect-ratio: 1;
+  border-radius: 1.6vmin;
+  object-fit: cover;
+  box-shadow: 0 3vmin 8vmin rgba(0, 0, 0, 0.6);
+  background: #1a1815;
+}
+#card .ct { font-family: var(--hero-family); font-size: 5.4vmin; letter-spacing: -0.03em; line-height: 1.02; }
+#card .ca { font-size: 2.4vmin; color: var(--accent); letter-spacing: 0.04em; font-weight: 600; }
+#card .cn { font-size: 1.6vmin; color: var(--dim); letter-spacing: 0.18em; text-transform: uppercase; }
+
+/* -------------------------------------------------------------- overlay --- */
+
+#overlay {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 9;
+  margin: 12px;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #cfcabd;
+  font: 12px/1.55 ui-monospace, "JetBrains Mono", "SF Mono", monospace;
+  white-space: pre;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+#overlay[hidden] { display: none; }
+#overlay b { color: #e8b86d; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  #art, #grain { transition: none; }
+}
