@@ -2,6 +2,7 @@ import type { LyricDoc, NowPlaying, SceneMode, ServerMsg } from '@lyricroom/shar
 import { PORT } from './config.js';
 import { makeAnchor } from './clock.js';
 import { MprisAdapter } from './players/mpris.js';
+import { MacAdapter } from './players/macos.js';
 import type { PlayerAdapter, PlayerState } from './players/types.js';
 import { resolveLyrics, PROVIDERS } from './lyrics/resolver.js';
 import { getOffset, nudgeOffset, flush as flushOffsets } from './lyrics/offsets.js';
@@ -23,7 +24,10 @@ interface TrackContext {
 }
 
 class Daemon {
-  private player: PlayerAdapter = new MprisAdapter();
+  // The only platform-specific line in the daemon: MPRIS on Linux, AppleScript
+  // on macOS. Both produce the same PlayerState, so nothing downstream knows.
+  private player: PlayerAdapter =
+    process.platform === 'darwin' ? new MacAdapter() : new MprisAdapter();
   private hub!: Hub;
   private ctx: TrackContext | null = null;
   private state: PlayerState = { track: null, anchor: makeAnchor(0, 'stopped') };

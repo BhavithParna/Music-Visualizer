@@ -175,10 +175,18 @@ export class LineView {
    * long bar can never run off the edge of the frame.
    */
   fitToFrame(container: HTMLElement): void {
-    // The margin absorbs the push-in and the per-word offsets, so a phrase that
-    // just fits at rest still cannot touch the frame edge at its largest.
-    const avail = container.clientWidth * 0.86;
-    const availH = container.clientHeight * 0.82;
+    // The margin absorbs the per-word jitter offsets, so a phrase that just
+    // fits at rest still cannot touch the frame edge at its largest.
+    //
+    // This measurement is taken at rest, but the phrase never actually stays
+    // at rest: `update()` keeps zooming it slowly for its whole life (up to
+    // +3.2%) and each word overshoots slightly on entry (up to +2.4%). Fitting
+    // to the resting size and letting those run on top is what let a hero
+    // word sized right at the ceiling grow past the frame edge after landing.
+    // GROWTH_BUDGET reserves that headroom up front instead.
+    const GROWTH_BUDGET = 1.1;
+    const avail = (container.clientWidth * 0.86) / GROWTH_BUDGET;
+    const availH = (container.clientHeight * 0.82) / GROWTH_BUDGET;
     if (avail <= 0) return;
 
     // The rows are full-width flex containers and the phrase fills the frame,
@@ -225,10 +233,13 @@ export class LineView {
     this.el.style.transform =
       `translate3d(${tx.toFixed(2)}%, ${ty.toFixed(2)}%, 0) scale(${scale.toFixed(4)})`;
     this.el.style.opacity = e > 0 ? Math.max(0, 1 - e * 1.5).toFixed(3) : '';
-    if (this.quality === 'high') {
-      const blur = Math.round(e * 16);
-      this.el.style.filter = blur > 0 ? `blur(${blur}px)` : '';
-    }
+    // This is a whole-phrase transition effect, not a per-word timing tell,
+    // so it applies in 'lite' quality too. Without it, an outgoing phrase
+    // stays sharp and ~55% opaque for its first ~100ms while the incoming one
+    // is already arriving -- two compositions sitting on top of each other
+    // in full focus, which reads as broken rather than as a cut.
+    const blur = Math.round(e * 16);
+    this.el.style.filter = blur > 0 ? `blur(${blur}px)` : '';
 
     // Once the phrase is leaving, the words inside it stop moving on their own;
     // the whole block travels as one piece.

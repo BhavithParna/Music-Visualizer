@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>LyricRoom</title>
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0b0c" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   </head>
   <body>
     <div id="stage" aria-hidden="true">
@@ -14,6 +18,12 @@
     </div>
     <main id="type"></main>
     <div id="card" hidden></div>
+    <button id="fsToggle" type="button" aria-label="Enter fullscreen" title="Fullscreen (f)">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" />
+      </svg>
+    </button>
     <div id="overlay" hidden></div>
     <audio id="fixture-audio" hidden></audio>
     <script type="module" src="/src/main.ts"></script>

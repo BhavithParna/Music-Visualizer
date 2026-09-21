@@ -5,21 +5,66 @@ play, the lyrics appear word by word in huge grotesque type over blurred album
 art, with echo trails, a karaoke sweep, and the occasional glyph or inverted hook
 word.
 
-Runs on Linux today and ports to macOS by swapping a single module.
+Runs on Linux and macOS. Only the player adapter differs between them; the
+renderer knows nothing about either.
 
 ---
 
-## Quick start
+## Install it as an app
+
+The one-step route on both platforms. You get a real launcher with its own
+icon that starts the daemon on demand and opens the display in a window.
+
+### Linux
 
 ```bash
-npm install
-npm run build
-node apps/daemon/dist/index.js      # terminal 1: the daemon
-deploy/linux/launch-kiosk.sh        # terminal 2: the display
+npm install && npm run build
+deploy/linux/install.sh
 ```
 
-Add `--windowed` to the launcher to get an ordinary window instead of a kiosk,
-which is what you want when the display is also the machine you work on.
+LyricRoom appears in the app grid — right-click it there to pin it to the dock.
+Requires `playerctl` (`dnf install playerctl` / `apt install playerctl`) and a
+Chromium-family browser.
+
+### macOS
+
+```bash
+npm install && npm run build
+deploy/macos/install.sh
+```
+
+`LyricRoom.app` lands in `~/Applications`, so it shows up in Spotlight and
+Launchpad and can be dragged to the Dock. Requires Node and Google Chrome (or
+Chromium/Brave/Edge) in `/Applications`.
+
+The first time it runs, macOS asks whether it may control Spotify or Music.
+That prompt is how the now-playing data gets read at all — decline it and the
+screen stays empty. If you miss it: System Settings → Privacy & Security →
+Automation.
+
+---
+
+## Quick start, without installing
+
+### Linux
+
+```bash
+npm install && npm run build
+node apps/daemon/dist/index.js       # terminal 1: the daemon
+deploy/linux/launch-kiosk.sh         # terminal 2: the display
+```
+
+### macOS
+
+```bash
+npm install && npm run build
+node apps/daemon/dist/index.js       # terminal 1: the daemon
+deploy/macos/launch-kiosk.command    # terminal 2: the display
+```
+
+Add `--windowed` to either launcher to get an ordinary window instead of a
+kiosk, which is what you want when the display is also the machine you work on.
+In the window, the button in the corner (or `f`) goes fullscreen.
 
 Then play something. Open `http://localhost:8321/remote` on your phone for
 transport, sync nudging and display mode.
@@ -49,15 +94,23 @@ it. If the word is wrong, it is a data problem: press `n` to try the next source
 ## How it fits together
 
 ```
-playerctl --follow ─┐
-                    ├─► daemon ──► lyric cascade ──► cache (~/.local/share/lyricroom)
-pw-record monitor ──┘      │
-                           └── WebSocket :8321 ──► renderer (Chrome --kiosk)
+playerctl --follow  (Linux) ─┐
+osascript poll      (macOS) ─┼─► daemon ──► lyric cascade ──► cache
+pw-record monitor            ┘      │
+                                    └── WebSocket :8321 ──► renderer (Chrome)
 ```
 
-The **daemon** watches MPRIS, resolves lyrics, proxies album art onto its own
-origin, picks glyphs, and streams a spectrum. The **renderer** owns everything
-visual and is entirely platform-agnostic.
+The **daemon** watches whatever is playing, resolves lyrics, proxies album art
+onto its own origin, picks glyphs, and streams a spectrum. The **renderer** owns
+everything visual and is entirely platform-agnostic.
+
+### The only platform-specific part
+
+`players/mpris.ts` follows MPRIS over `playerctl`; `players/macos.ts` polls
+Spotify and Music through `osascript`. Both hand the daemon the same
+`PlayerState`, and `index.ts` picks one by `process.platform` — that line is
+the whole port. Spotify still yields a `spotify:track:` id on macOS, so the
+lyric cache keys match across both machines.
 
 ### Why there is no timeline object
 
@@ -141,20 +194,39 @@ Offsets are saved per track.
 
 ---
 
-## Install as a service
+## Run it as a service
+
+For the always-on room display, where nobody should have to launch anything.
+Neither installer enables this for you.
+
+### Linux
 
 ```bash
-npm run build
 deploy/linux/install.sh
+systemctl --user enable --now lyricroom-daemon.service
 systemctl --user enable --now lyricroom-kiosk.service
 ```
 
-The kiosk launcher holds `gnome-session-inhibit` for as long as it runs, so the
-screen never blanks.
+The daemon and the kiosk both restart on their own. The kiosk launcher holds
+`gnome-session-inhibit` for as long as it runs, so the screen never blanks.
 
-On macOS, use `deploy/macos/`. Only the player adapter changes: Spotify and
-Music.app are scripted through `osascript`, and Spotify still yields a
-`spotify:track:` id, so the same cache keys work.
+### macOS
+
+```bash
+deploy/macos/install.sh
+mkdir -p ~/Library/LaunchAgents
+sed "s#REPLACE_WITH_REPO_PATH#$PWD#g" deploy/macos/com.lyricroom.daemon.plist \
+  > ~/Library/LaunchAgents/com.lyricroom.daemon.plist
+launchctl load ~/Library/LaunchAgents/com.lyricroom.daemon.plist
+```
+
+That keeps the daemon resolving lyrics from login onwards; open LyricRoom.app
+whenever you want the display. `caffeinate -d` in the kiosk launcher is the
+equivalent of the GNOME idle inhibit.
+
+Note that a launchd agent still needs the Automation permission granted to it
+before it can read Spotify or Music, and that prompt only appears in a logged-in
+GUI session — so open the app by hand once first.
 
 ---
 
@@ -168,7 +240,8 @@ Music.app are scripted through `osascript`, and Spotify still yields a
 | `LYRICROOM_ALLOW_KUGOU` | off | Opt back into KuGou word timings |
 
 State lives in `~/.local/share/lyricroom/` (`cache/`, `art/`, `lyrics/`,
-`offsets.json`). Nothing is written into the repository.
+`offsets.json`) on both platforms — the same path on macOS, deliberately, so a
+cache can be copied between machines. Nothing is written into the repository.
 
 ---
 
@@ -176,9 +249,12 @@ State lives in `~/.local/share/lyricroom/` (`cache/`, `art/`, `lyrics/`,
 
 ```
 apps/daemon      now-playing, lyric cascade, art proxy, glyphs, spectrum, WS
+  players/mpris.ts   Linux, via playerctl
+  players/macos.ts   macOS, via osascript
 apps/renderer    all the visuals; knows nothing about the OS
 packages/shared  the wire contract
-deploy/          systemd units and kiosk launchers
+deploy/linux     systemd units, kiosk launcher, .desktop entry
+deploy/macos     launchd agent, kiosk launcher, LyricRoom.app
 fixtures/        original demo content for offline iteration
 reference/       the reel this was modelled on
 ```
@@ -186,6 +262,7 @@ reference/       the reel this was modelled on
 ## Tests
 
 ```bash
-npm test         # parsers, timing normalisation, phrase splitting, title queries
+npm test         # parsers, timing normalisation, phrase splitting, title queries,
+                 # macOS player rows
 npm run typecheck
 ```

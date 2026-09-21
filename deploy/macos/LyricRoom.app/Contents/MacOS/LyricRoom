@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# LaunchServices runs this with no useful cwd or PATH, so it just hands off to
+# the real launcher in the repo this bundle was installed for. @REPO@ is
+# filled in by deploy/macos/install.sh; this file is a template until then.
+set -euo pipefail
+exec "@REPO@/deploy/macos/open-app.command"

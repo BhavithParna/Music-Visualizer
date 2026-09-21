@@ -12,7 +12,7 @@ export const DEFAULT_PALETTE: StagePalette = {
   stage: '#0b0b0c',
   ink: '#f1efe8',
   accent: '#e8b86d',
-  dim: 'rgba(241,239,232,0.28)',
+  dim: 'rgba(241,239,232,0.5)',
   luminance: 0,
   scrim: 0.55,
 };
@@ -67,7 +67,7 @@ export function paletteFromImage(img: HTMLImageElement): StagePalette {
     return DEFAULT_PALETTE;
   }
 
-  const buckets = new Map<number, { n: number; h: number; s: number; l: number }>();
+  const buckets = new Map<number, { n: number; h: number; s: number; l: number; sMax: number }>();
   let lumSum = 0;
   let count = 0;
 
@@ -80,17 +80,22 @@ export function paletteFromImage(img: HTMLImageElement): StagePalette {
     count += 1;
     // 24 hue bins x 4 lightness bins is enough structure without over-splitting.
     const key = Math.floor(h * 24) * 4 + Math.min(3, Math.floor(l * 4));
-    const cur = buckets.get(key) ?? { n: 0, h: 0, s: 0, l: 0 };
+    const cur = buckets.get(key) ?? { n: 0, h: 0, s: 0, l: 0, sMax: 0 };
     cur.n += 1;
     cur.h += h;
     cur.s += s;
     cur.l += l;
+    if (s > cur.sMax) cur.sMax = s;
     buckets.set(key, cur);
   }
   if (count === 0) return DEFAULT_PALETTE;
 
+  // A bucket's mean saturation understates it badly on a photographic cover:
+  // one red car averaged against the night around it comes out grey. Lean the
+  // representative saturation towards the most vivid pixel in the bucket, so
+  // the colour the eye actually reads off the sleeve is the one we use.
   const entries = [...buckets.values()].map((b) => ({
-    h: b.h / b.n, s: b.s / b.n, l: b.l / b.n, n: b.n,
+    h: b.h / b.n, s: Math.max(b.s / b.n, b.sMax * 0.75), l: b.l / b.n, n: b.n,
   }));
 
   // Accent: colourful and mid-bright, weighted by how much of the cover it is.
@@ -100,28 +105,30 @@ export function paletteFromImage(img: HTMLImageElement): StagePalette {
 
   const luminance = lumSum / count;
 
-  // Warm grade: pull the accent hue towards gold and keep it bright enough to read.
-  const goldHue = 0.105;
-  let ah = accentPick?.h ?? goldHue;
-  const as = clamp((accentPick?.s ?? 0.5) * 0.9 + 0.18, 0.35, 0.82);
+  // The cover's own hue, kept. This used to be dragged 45% towards a house
+  // gold, which is why every record -- blue, green, magenta -- came out the
+  // same warm cream and no song looked like its sleeve.
+  const ah = accentPick?.h ?? 0.105;
+  const as = clamp((accentPick?.s ?? 0.5) * 1.25 + 0.16, 0.42, 0.92);
   const al = clamp((accentPick?.l ?? 0.6) * 0.55 + 0.34, 0.48, 0.72);
-  // Shortest path towards gold, so a blue cover warms rather than spinning hue.
-  const delta = ((goldHue - ah + 1.5) % 1) - 0.5;
-  ah = ah + delta * 0.45;
 
-  // Stage: very dark, faintly tinted by the cover so it never reads as pure black.
-  const stage = hslToCss(ah, clamp(as * 0.35, 0.05, 0.22), 0.042);
-  // Ink: warm cream, nudged by the accent hue so type sits in the same light.
-  const ink = hslToCss(ah, 0.22, 0.945);
+  // Stage: very dark, tinted by the cover so it never reads as pure black.
+  const stage = hslToCss(ah, clamp(as * 0.45, 0.06, 0.32), 0.045);
+  // Ink: still light enough to carry huge type over art, but tinted far enough
+  // to read as *this* record's colour rather than as generic cream. A washed
+  // or monochrome cover has a low `as` and lands back near white on its own.
+  const ink = hslToCss(ah, clamp(0.16 + as * 0.45, 0.2, 0.56), 0.92);
   const accent = hslToCss(ah, as, al);
 
   return {
     stage,
     ink,
     accent,
-    dim: hslToCss(ah, 0.18, 0.9, 0.3),
+    // The unsung half of the karaoke sweep: the same colour as the ink, just
+    // held back, so a word doesn't change hue as it is sung -- only strength.
+    dim: hslToCss(ah, clamp(0.14 + as * 0.4, 0.18, 0.5), 0.87, 0.5),
     luminance,
-    // Bright covers need a heavier scrim to keep cream type legible over them.
+    // Bright covers need a heavier scrim to keep the type legible over them.
     scrim: clamp(0.3 + luminance * 0.4, 0.3, 0.72),
   };
 }

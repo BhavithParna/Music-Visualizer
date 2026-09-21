@@ -137,10 +137,32 @@ window.addEventListener('keydown', (ev) => {
       conn.send({ type: 'control', action: 'playpause' });
       break;
     case 'f':
-      if (document.fullscreenElement) void document.exitFullscreen();
-      else void document.documentElement.requestFullscreen();
+      toggleFullscreen();
       break;
   }
+});
+
+// ------------------------------------------------------------ fullscreen ---
+
+const ENTER_ICON =
+  '<path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" />';
+const EXIT_ICON =
+  '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" />';
+
+function toggleFullscreen(): void {
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else void document.documentElement.requestFullscreen();
+}
+
+const fsToggle = document.getElementById('fsToggle') as HTMLButtonElement;
+fsToggle.addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', () => {
+  const on = Boolean(document.fullscreenElement);
+  fsToggle.dataset['on'] = on ? '1' : '0';
+  fsToggle.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
+  fsToggle.title = on ? 'Exit fullscreen (f)' : 'Fullscreen (f)';
+  const svg = fsToggle.querySelector('svg');
+  if (svg) svg.innerHTML = on ? EXIT_ICON : ENTER_ICON;
 });
 
 // Keep the pointer out of the way on a room display, but let it come back

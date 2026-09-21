@@ -8,7 +8,11 @@
   --accent: #e8b86d;
   --dim: rgba(241, 239, 232, 0.28);
   --scrim: 0.44;
-  --art-blur: 4px;
+  /* The art is a 64px canvas the compositor scales up to fill the screen
+   * (see #art below), so this radius gets multiplied right along with it --
+   * ~30-35x on a typical display. 4px was blurring the cover into a
+   * near-flat gradient with no shape left; this keeps it soft but present. */
+  --art-blur: 1px;
 
   --hero-family: 'Archivo Black', 'Inter Display', 'Inter Variable', system-ui, sans-serif;
   --body-family: 'Inter Variable', 'Inter Display', system-ui, sans-serif;
@@ -116,11 +120,17 @@ body { position: relative; }
   align-items: baseline;
   gap: 0.22em;
   width: 100%;
-  line-height: 0.88;
+  /* 1 keeps the line box tall enough to hold real descenders and ascenders;
+   * a compressed line-height paints glyphs outside their own box, which is
+   * invisible to getBoundingClientRect and defeats the fit-to-frame measure
+   * below. The negative margin on stacked rows buys back the tight leading
+   * without letting ink spill past the frame edge. */
+  line-height: 1;
 }
 .row[data-align='left']   { justify-content: flex-start; }
 .row[data-align='center'] { justify-content: center; }
 .row[data-align='right']  { justify-content: flex-end; }
+.row + .row { margin-top: -0.1em; }
 
 .word {
   position: relative;
@@ -145,6 +155,16 @@ body { position: relative; }
   display: block;
   color: var(--ink);
   will-change: opacity, filter;
+  /*
+   * The sweep below paints glyphs by clipping a background to the text, and a
+   * background only covers the element's own box. A descender hangs below that
+   * box, so g, y, p and j were painted off at the box edge and came out with a
+   * flat cut across the tail. The padding grows the paint box; the matching
+   * negative margin puts the layout box back exactly where it was, so nothing
+   * above or below moves.
+   */
+  padding: 0.2em 0 0.36em;
+  margin: -0.2em 0 -0.36em;
 }
 
 /* Karaoke sweep: the sung part is solid, the rest is held back. */
@@ -224,6 +244,34 @@ body { position: relative; }
 #card .ct { font-family: var(--hero-family); font-size: 5.4vmin; letter-spacing: -0.03em; line-height: 1.02; }
 #card .ca { font-size: 2.4vmin; color: var(--accent); letter-spacing: 0.04em; font-weight: 600; }
 #card .cn { font-size: 1.6vmin; color: var(--dim); letter-spacing: 0.18em; text-transform: uppercase; }
+
+/* ------------------------------------------------------------ controls --- */
+
+#fsToggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(20, 19, 17, 0.5);
+  color: var(--ink);
+  opacity: 0.32;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: opacity 200ms ease, background 200ms ease, transform 150ms ease;
+}
+#fsToggle:hover,
+#fsToggle:focus-visible {
+  opacity: 1;
+  background: rgba(20, 19, 17, 0.78);
+}
+#fsToggle:active { transform: scale(0.92); }
 
 /* -------------------------------------------------------------- overlay --- */
 

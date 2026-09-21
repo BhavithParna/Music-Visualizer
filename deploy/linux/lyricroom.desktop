@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LyricRoom
+Comment=Kinetic-typography lyrics for whatever you're playing
+Exec="@REPO@/deploy/linux/open-app.sh"
+Icon=lyricroom
+Terminal=false
+Categories=AudioVideo;Music;
+StartupNotify=true
