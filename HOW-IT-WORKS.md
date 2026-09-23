@@ -358,7 +358,7 @@ cheap at 4K. The post pass replaced three DOM layers (scrim, grain, vignette); t
 
 | Look | What it is | Picked for |
 |---|---|---|
-| `aureole` | The Apple Music background: copies of the processed cover at four sizes, spinning, the small ones orbiting, each sampled through a twist | the default, "even" songs |
+| `aureole` | The album art as a soft layered field: copies of the processed cover at three sizes, each turned a little and drifting over minutes, no spin or twist | the default, "even" songs |
 | `smoke` | Inigo Quilez domain-warped fbm in the palette, lit by a travelling light | dark, slow songs; heartbreak |
 | `liquid-ink` | Stable fluids (after PavelDoGreat, MIT) at 128 px sim / 512 px dye, splatted on kicks and hero landings; Smooth fakes it with advected blobs | intense songs; water |
 | `night-city` | A dark plate with bokeh at three depths and a light streak on the kick | night, city, money |

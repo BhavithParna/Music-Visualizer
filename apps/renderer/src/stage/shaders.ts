@@ -61,36 +61,35 @@ vec3 screenBlend(vec3 a, vec3 b) { return 1.0 - (1.0 - a) * (1.0 - b); }
 `;
 
 /**
- * Aureole: the Apple Music background. Copies of the processed cover at
- * different sizes, spinning at different rates, the small ones orbiting, each
- * sampled through a twist so the art swirls rather than slides.
+ * Aureole: the album art as a soft, layered field. Copies of the processed
+ * cover at different sizes, each turned a little and drifting very slowly,
+ * blended so the record's colours pool together. Nothing spins or twists: the
+ * stage is close to still, and only breathes with the music.
  */
 const AUREOLE = HEADER + /* glsl */ `
-vec4 layer(vec2 p, vec2 c, float size, float ang, float twist) {
-  vec2 q = (p - c) / size;
+vec4 layer(vec2 p, vec2 c, float size, float ang) {
+  vec2 q = rot((p - c) / size, ang);
   float d = length(q);
-  float tw = max(0.0, 1.0 - d / 0.75);
-  q = rot(q, ang + tw * tw * twist);
   vec3 col = art(clamp(q + 0.5, 0.0, 1.0));
   return vec4(col, smoothstep(0.72, 0.2, d));
 }
 void main() {
   vec2 p = frameP() + uCam * 0.4;
   float asp = uRes.x / uRes.y;
-  float t = uTime;
+  // Very slow: a full drift cycle takes minutes, not seconds.
+  float t = uTime * 0.02;
   float big = max(asp, 1.0) * 1.414;
-  vec3 col = layer(p, vec2(0.0), big * 1.1, t * 0.05, 1.6).rgb;
-  vec4 l2 = layer(p, vec2(0.0), big * 0.72, -t * 0.08, 2.2 + uSection);
-  col = mix(col, l2.rgb, l2.a * 0.8);
-  vec4 l3 = layer(p, vec2(cos(t * 0.11), sin(t * 0.13)) * vec2(0.32 * asp, 0.22), 0.55 * asp, t * 0.12, 2.6);
-  col = mix(col, l3.rgb, l3.a * 0.72);
+  float breathe = 1.0 + 0.012 * uBass;
+  vec3 col = layer(p, vec2(sin(t * 0.7), cos(t * 0.5)) * 0.03, big * 1.1 * breathe, 0.0).rgb;
+  vec4 l2 = layer(p, vec2(cos(t * 0.6), sin(t * 0.8)) * vec2(0.08 * asp, 0.05), big * 0.72 * breathe, 0.9 + sin(t * 0.3) * 0.05);
+  col = mix(col, l2.rgb, l2.a * 0.6);
   if (uHi > 0.5) {
-    vec4 l4 = layer(p, vec2(sin(t * 0.07 + 1.0), cos(t * 0.09 + 2.0)) * vec2(0.4 * asp, 0.28), 0.3 * asp, -t * 0.15, 3.0);
-    col = mix(col, l4.rgb, l4.a * 0.66);
+    vec4 l3 = layer(p, vec2(sin(t * 0.5 + 1.0), cos(t * 0.4 + 2.0)) * vec2(0.18 * asp, 0.12), 0.55 * asp * breathe, -1.7);
+    col = mix(col, l3.rgb, l3.a * 0.45);
   }
   float g = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(vec3(g), col, 1.3 + 0.25 * uSection);
-  col *= 0.8 + 0.22 * uEnergy + 0.18 * uImpact + 0.08 * uKick;
+  col = mix(vec3(g), col, 1.15 + 0.15 * uSection);
+  col *= 0.86 + 0.14 * uEnergy + 0.08 * uImpact;
   outColor = vec4(col, 1.0);
 }`;
 
