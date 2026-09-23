@@ -9,6 +9,7 @@ export const ART_DIR = join(DATA_DIR, 'art');
 /** Hand-authored overrides: drop `<trackKey>.ttml` or `.lrc` here and it wins over every provider. */
 export const SIDECAR_DIR = join(DATA_DIR, 'lyrics');
 export const OFFSETS_FILE = join(DATA_DIR, 'offsets.json');
+export const SETTINGS_FILE = join(DATA_DIR, 'settings.json');
 
 export const PORT = Number(process.env.LYRICROOM_PORT ?? 8321);
 export const USER_AGENT = 'LyricRoom/0.1 (personal room display; +https://github.com/local/lyricroom)';

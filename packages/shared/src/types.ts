@@ -103,6 +103,80 @@ export interface Palette {
 export type SceneMode = 'word' | 'line' | 'art' | 'idle';
 
 // ---------------------------------------------------------------------------
+// Render tiers, looks and song theming
+// ---------------------------------------------------------------------------
+
+/**
+ * How hard the renderer may push the GPU. `cinema` is the full look for a
+ * strong GPU; `smooth` holds 60 fps on integrated graphics. `auto` lets each
+ * display pick for itself from a short startup probe.
+ */
+export type RenderTier = 'cinema' | 'smooth';
+export type TierSetting = RenderTier | 'auto';
+
+/** The shader background. Chosen per song from its profile unless overridden. */
+export type LookName = 'aureole' | 'smoke' | 'liquid-ink' | 'night-city' | 'sunlit';
+export const LOOKS: readonly LookName[] = ['aureole', 'smoke', 'liquid-ink', 'night-city', 'sunlit'];
+
+/** Motion temperament: pacing, fonts, cut style. Chosen per song unless overridden. */
+export type MotionPreset = 'calm' | 'kinetic' | 'slam';
+export const PRESETS: readonly MotionPreset[] = ['calm', 'kinetic', 'slam'];
+
+/** Display settings shared by every surface and persisted by the daemon. */
+export interface DisplaySettings {
+  tier: TierSetting;
+  look: LookName | 'auto';
+  preset: MotionPreset | 'auto';
+}
+
+export const DEFAULT_SETTINGS: DisplaySettings = { tier: 'auto', look: 'auto', preset: 'auto' };
+
+export type SectionKind = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro';
+
+export interface Section {
+  kind: SectionKind;
+  startMs: number;
+  endMs: number;
+  /** Index of the first and one past the last lyric line in the section. */
+  fromLine: number;
+  toLine: number;
+  /** 0..1, relative to the loudest section of the song, from density and mood. */
+  energy: number;
+  /** 0 for the first chorus, 1 for the second, and so on. */
+  occurrence: number;
+}
+
+/** What a song is about and how it moves, derived offline from its lyrics. */
+export interface SongProfile {
+  /** -1..1, sad to happy. */
+  valence: number;
+  /** 0..1, calm to intense. */
+  arousal: number;
+  /** Top theme clusters, most prominent first, e.g. ['night', 'love']. */
+  themes: string[];
+  /** Mean sung words per second. */
+  density: number;
+  sections: Section[];
+  /** Section index for every lyric line. */
+  lineSection: number[];
+  lineMood: { valence: number; arousal: number }[];
+}
+
+/** Live beat tracking, riding on the spectrum message. */
+export interface BeatInfo {
+  /** 0 until the tracker locks. */
+  bpm: number;
+  /** 0..1 position inside the current beat; 0 is the beat. */
+  phase: number;
+  /** Decaying onset envelopes 0..1: 1 on the hit, falling over ~180 ms. */
+  kick: number;
+  snare: number;
+  hat: number;
+  /** 0..1 slow loudness relative to what this song has done so far. */
+  energy: number;
+}
+
+// ---------------------------------------------------------------------------
 // WebSocket protocol
 // ---------------------------------------------------------------------------
 
@@ -152,6 +226,18 @@ export interface SpectrumMsg {
   /** Smoothed bass envelope 0..1. */
   bass: number;
   atServerMs: number;
+  beat?: BeatInfo;
+}
+
+export interface ProfileMsg {
+  type: 'profile';
+  trackKey: string;
+  profile: SongProfile | null;
+}
+
+export interface SettingsMsg {
+  type: 'settings';
+  settings: DisplaySettings;
 }
 
 export interface ModeMsg {
@@ -174,6 +260,8 @@ export type ServerMsg =
   | GlyphsMsg
   | SpectrumMsg
   | ModeMsg
+  | ProfileMsg
+  | SettingsMsg
   | PongMsg;
 
 export interface PingMsg {
@@ -197,7 +285,12 @@ export interface SetModeMsg {
   mode: SceneMode | 'auto';
 }
 
-export type ClientMsg = PingMsg | NudgeMsg | ControlMsg | SetModeMsg;
+export interface SetSettingsMsg {
+  type: 'setsettings';
+  settings: Partial<DisplaySettings>;
+}
+
+export type ClientMsg = PingMsg | NudgeMsg | ControlMsg | SetModeMsg | SetSettingsMsg;
 
 export const WS_PATH = '/ws';
 export const DEFAULT_PORT = 8321;

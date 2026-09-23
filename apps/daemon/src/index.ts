@@ -1,4 +1,5 @@
-import type { LyricDoc, NowPlaying, SceneMode, ServerMsg } from '@lyricroom/shared';
+import type { DisplaySettings, LyricDoc, NowPlaying, SceneMode, ServerMsg, SongProfile } from '@lyricroom/shared';
+import { DEFAULT_SETTINGS } from '@lyricroom/shared';
 import { PORT } from './config.js';
 import { makeAnchor } from './clock.js';
 import { MprisAdapter } from './players/mpris.js';
@@ -12,12 +13,15 @@ import { createHttpServer } from './server.js';
 import { Hub, lyricsMsg, nowPlayingMsg } from './hub.js';
 import { remoteHtml } from './remote.js';
 import { startSpectrum, type SpectrumHandle } from './audio/spectrum.js';
+import { analyzeSong } from './lyrics/mood.js';
+import { loadSettings, updateSettings } from './settings.js';
 
 interface TrackContext {
   track: NowPlaying;
   doc: LyricDoc | null;
   offsetMs: number;
   glyphs: Record<number, string>;
+  profile: SongProfile | null;
   /** Providers the user has skipped past for this track, via "next source". */
   skipped: Set<string>;
   artPath?: string;
@@ -34,8 +38,10 @@ class Daemon {
   private mode: SceneMode | 'auto' = 'auto';
   private resolveSeq = 0;
   private spectrum: SpectrumHandle | null = null;
+  private settings: DisplaySettings = { ...DEFAULT_SETTINGS };
 
   async start(): Promise<void> {
+    this.settings = await loadSettings();
     const server = createHttpServer({
       state: () => ({
         track: this.state.track,
@@ -50,6 +56,16 @@ class Daemon {
             }
           : null,
         offsetMs: this.ctx?.offsetMs ?? 0,
+        settings: this.settings,
+        profile: this.ctx?.profile
+          ? {
+              valence: this.ctx.profile.valence,
+              arousal: this.ctx.profile.arousal,
+              themes: this.ctx.profile.themes,
+              density: this.ctx.profile.density,
+              sections: this.ctx.profile.sections.map((s) => `${s.kind}@${Math.round(s.startMs / 1000)}s`),
+            }
+          : null,
         clients: this.hub?.size ?? 0,
       }),
       remoteHtml: async () => remoteHtml(),
@@ -62,14 +78,20 @@ class Daemon {
         this.mode = mode;
         this.hub.broadcast({ type: 'mode', mode });
       },
+      onSetSettings: (patch) => {
+        void updateSettings(patch).then((settings) => {
+          this.settings = settings;
+          this.hub.broadcast({ type: 'settings', settings });
+        });
+      },
       snapshot: () => this.snapshot(),
     });
 
     this.player.onState((s) => void this.onPlayerState(s));
     await this.player.start();
 
-    this.spectrum = startSpectrum((bands, bass, atServerMs) => {
-      if (this.hub.size > 0) this.hub.broadcast({ type: 'spectrum', bands, bass, atServerMs });
+    this.spectrum = startSpectrum((bands, bass, atServerMs, beat) => {
+      if (this.hub.size > 0) this.hub.broadcast({ type: 'spectrum', bands, bass, atServerMs, beat });
     });
 
     await new Promise<void>((resolve) => server.listen(PORT, resolve));
@@ -80,10 +102,12 @@ class Daemon {
     const out: ServerMsg[] = [
       nowPlayingMsg(this.state.track, this.state.anchor),
       { type: 'mode', mode: this.mode },
+      { type: 'settings', settings: this.settings },
     ];
     if (this.ctx) {
       out.push(lyricsMsg(this.ctx.track.trackKey, this.ctx.doc, this.ctx.offsetMs));
       out.push({ type: 'glyphs', trackKey: this.ctx.track.trackKey, glyphs: this.ctx.glyphs });
+      out.push({ type: 'profile', trackKey: this.ctx.track.trackKey, profile: this.ctx.profile });
     }
     return out;
   }
@@ -124,7 +148,7 @@ class Daemon {
     const seq = ++this.resolveSeq;
     const skipped = opts.skip ?? new Set<string>();
     const offsetMs = await getOffset(track.trackKey);
-    this.ctx = { track, doc: null, offsetMs, glyphs: {}, skipped };
+    this.ctx = { track, doc: null, offsetMs, glyphs: {}, profile: null, skipped };
 
     void this.attachArt(track);
 
@@ -138,10 +162,22 @@ class Daemon {
 
     this.ctx.doc = doc;
     this.ctx.glyphs = doc ? mapGlyphs(doc) : {};
+    this.ctx.profile = null;
+    if (doc && doc.lines.length) {
+      try {
+        this.ctx.profile = analyzeSong(doc);
+      } catch (err) {
+        // Theming is decoration; a lexicon hiccup must never cost the lyrics.
+        console.warn('[lyricroom] profile failed:', err);
+      }
+    }
     this.hub.broadcast(lyricsMsg(track.trackKey, doc, offsetMs));
     this.hub.broadcast({ type: 'glyphs', trackKey: track.trackKey, glyphs: this.ctx.glyphs });
+    this.hub.broadcast({ type: 'profile', trackKey: track.trackKey, profile: this.ctx.profile });
 
-    const label = doc ? `${doc.level} via ${doc.provider} (${doc.lines.length} lines)` : 'no lyrics';
+    const p = this.ctx.profile;
+    const mood = p ? `, v${p.valence} a${p.arousal} [${p.themes.join(',')}] ${p.sections.length} sections` : '';
+    const label = doc ? `${doc.level} via ${doc.provider} (${doc.lines.length} lines${mood})` : 'no lyrics';
     console.log(`[lyricroom] ${track.artist} - ${track.title}: ${label}`);
   }
 

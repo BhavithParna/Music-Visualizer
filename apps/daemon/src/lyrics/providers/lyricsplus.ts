@@ -13,17 +13,20 @@ interface KpoeLine {
   syllabus?: KpoeSyllable[];
   element?: { key?: string; singer?: string; songPartIndex?: number; isBackground?: boolean };
 }
+/** Newer instances send `{ name, time, duration }` objects, older ones bare strings. */
+type SongPart = string | { name?: string };
 interface KpoeResponse {
   type?: string;
   lyrics?: KpoeLine[];
-  metadata?: { source?: string; songParts?: string[] };
+  metadata?: { source?: string; songParts?: SongPart[] };
   error?: string;
 }
 
 /** Remember which instance answered last so we do not re-pay for dead hosts. */
 let preferredBase = 0;
 
-function toLines(data: KpoeResponse, parts: string[] | undefined): LyricLine[] {
+function toLines(data: KpoeResponse, rawParts: SongPart[] | undefined): LyricLine[] {
+  const parts = rawParts?.map((p) => (typeof p === 'string' ? p : p?.name ?? ''));
   const out: LyricLine[] = [];
   for (const raw of data.lyrics ?? []) {
     const text = (raw.text ?? '').replace(/\s+/g, ' ').trim();

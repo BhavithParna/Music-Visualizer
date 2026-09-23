@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import type { Server } from 'node:http';
 import type {
-  ClientMsg, LyricDoc, NowPlaying, Palette, PlaybackAnchor, ServerMsg, SceneMode,
+  ClientMsg, DisplaySettings, LyricDoc, NowPlaying, Palette, PlaybackAnchor, ServerMsg, SceneMode,
 } from '@lyricroom/shared';
 import { WS_PATH } from '@lyricroom/shared';
 import { monoNow } from './clock.js';
@@ -10,6 +10,7 @@ export interface HubHandlers {
   onNudge(trackKey: string, deltaMs: number): void;
   onControl(action: 'playpause' | 'next' | 'previous' | 'reloadLyrics' | 'nextProvider'): void;
   onSetMode(mode: SceneMode | 'auto'): void;
+  onSetSettings(settings: Partial<DisplaySettings>): void;
   snapshot(): ServerMsg[];
 }
 
@@ -52,6 +53,9 @@ export class Hub {
           break;
         case 'setmode':
           this.handlers.onSetMode(msg.mode);
+          break;
+        case 'setsettings':
+          if (msg.settings && typeof msg.settings === 'object') this.handlers.onSetSettings(msg.settings);
           break;
       }
     });

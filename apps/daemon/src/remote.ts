@@ -21,6 +21,9 @@ button{flex:1 1 90px;min-height:56px;border-radius:14px;border:1px solid #2a2823
   -webkit-tap-highlight-color:transparent}
 button:active{background:#201e19}
 button.accent{background:#e8b86d;color:#14110e;border-color:#e8b86d}
+button.on{border-color:#e8b86d;color:#e8b86d;background:#1d1912}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.hint{font-size:12px;color:#6f6a60;margin:0}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .offset{font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;text-align:center;margin:6px 0}
 section{display:flex;flex-direction:column;gap:10px}
@@ -42,6 +45,17 @@ section{display:flex;flex-direction:column;gap:10px}
 <button data-m="auto">Auto</button><button data-m="word">Word</button>
 <button data-m="line">Line</button><button data-m="art">Art</button>
 </div><div class="row"><button id="reload">Reload lyrics</button><button id="nextsrc">Next source</button></div></section>
+<section><h1>Render</h1><div class="grid3">
+<button data-s="tier" data-v="auto">Auto</button><button data-s="tier" data-v="cinema">Cinema</button><button data-s="tier" data-v="smooth">Smooth</button>
+</div><p class="hint">Cinema is the full look for a strong GPU. Smooth holds 60 fps on most graphics.</p></section>
+<section><h1>Look</h1><div class="grid3">
+<button data-s="look" data-v="auto">Auto</button><button data-s="look" data-v="aureole">Aureole</button><button data-s="look" data-v="smoke">Smoke</button>
+<button data-s="look" data-v="liquid-ink">Ink</button><button data-s="look" data-v="night-city">Night city</button><button data-s="look" data-v="sunlit">Sunlit</button>
+</div><p class="hint" id="mood"></p></section>
+<section><h1>Motion</h1><div class="grid">
+<button data-s="preset" data-v="auto">Auto</button><button data-s="preset" data-v="calm">Calm</button>
+<button data-s="preset" data-v="kinetic">Kinetic</button><button data-s="preset" data-v="slam">Slam</button>
+</div></section>
 <script>
 let ws, track=null, offset=0;
 const $=id=>document.getElementById(id);
@@ -56,6 +70,11 @@ function connect(){
     if(m.type==='lyrics'){ offset=m.offsetMs||0; $('off').textContent=offset+' ms';
       $('lvl').textContent=m.doc?m.doc.level:'none';
       $('prov').textContent=m.doc?m.doc.provider:''; }
+    if(m.type==='settings'){ document.querySelectorAll('[data-s]').forEach(b=>
+      b.classList.toggle('on', m.settings[b.dataset.s]===b.dataset.v)); }
+    if(m.type==='profile'){ const p=m.profile;
+      $('mood').textContent=p?('Song reads as '+(p.valence>0.2?'bright':p.valence<-0.2?'dark':'even')+', '+
+        (p.arousal>0.62?'intense':p.arousal<0.38?'calm':'moving')+(p.themes.length?' \u00b7 '+p.themes.join(', '):'')):''; }
   };
   ws.onclose=()=>setTimeout(connect,1500);
 }
@@ -68,6 +87,8 @@ $('nextsrc').onclick=()=>send({type:'control',action:'nextProvider'});
 $('reset').onclick=()=>{ if(track) send({type:'nudge',trackKey:track.trackKey,deltaMs:-offset}); };
 document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{
   if(track) send({type:'nudge',trackKey:track.trackKey,deltaMs:Number(b.dataset.d)}); });
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>
+  send({type:'setsettings',settings:{[b.dataset.s]:b.dataset.v}}));
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>send({type:'setmode',mode:b.dataset.m}));
 </script></body></html>`;
 }

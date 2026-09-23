@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { monoNow } from '../clock.js';
+import type { BeatInfo } from '@lyricroom/shared';
 import { fft, hann } from './fft.js';
+import { BeatTracker } from './beat.js';
 
 const FFT_SIZE = 2048;
 const SAMPLE_RATE = 44100;
@@ -11,7 +13,10 @@ export interface SpectrumHandle {
   stop(): void;
 }
 
-export type SpectrumListener = (bands: number[], bass: number, atServerMs: number) => void;
+export type SpectrumListener = (bands: number[], bass: number, atServerMs: number, beat: BeatInfo) => void;
+
+/** One FFT hop at 50% overlap, in ms: the frame period the beat tracker sees. */
+const HOP_MS = (FFT_SIZE / 2 / SAMPLE_RATE) * 1000;
 
 /** Log-spaced band edges from 30 Hz to 14 kHz, which is where music actually lives. */
 function bandEdges(): number[] {
@@ -53,6 +58,7 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
   const smoothed = new Float32Array(BANDS);
   let bassEnv = 0;
   let lastEmit = 0;
+  const beat = new BeatTracker();
 
   const process_ = (): void => {
     const re = new Float32Array(FFT_SIZE);
@@ -73,6 +79,10 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
       raw[b] = Math.min(1, Math.max(0, (20 * Math.log10(mag + 1e-6) + 70) / 70));
     }
 
+    // Onsets want the raw frame: the smoothing below exists for the eye and
+    // would blunt exactly the edges the tracker is looking for.
+    beat.push(raw, HOP_MS);
+
     // Fast attack, slow release: motion should bloom and settle, never flicker.
     for (let b = 0; b < BANDS; b += 1) {
       const target = raw[b]!;
@@ -85,7 +95,7 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
     const now = monoNow();
     if (now - lastEmit >= 1000 / EMIT_HZ) {
       lastEmit = now;
-      listener(Array.from(smoothed, (v) => Number(v.toFixed(3))), Number(bassEnv.toFixed(3)), now);
+      listener(Array.from(smoothed, (v) => Number(v.toFixed(3))), Number(bassEnv.toFixed(3)), now, beat.state);
     }
   };
 
@@ -94,7 +104,10 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
     const usable = buf.length - (buf.length % 4);
     carry = buf.subarray(usable);
     for (let off = 0; off + 4 <= usable; off += 4) {
-      acc[accLen] = buf.readFloatLE(off);
+      // A monitor stream can carry NaN or Inf (seen while paused); one bad
+      // sample would poison the FFT window and every envelope after it.
+      const v = buf.readFloatLE(off);
+      acc[accLen] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
       accLen += 1;
       if (accLen === FFT_SIZE) {
         process_();

@@ -35,7 +35,7 @@ export interface GlyphOptions {
  * carries the idea and the rest stay clean.
  */
 export function mapGlyphs(doc: LyricDoc, opts: GlyphOptions = {}): Record<number, string> {
-  const maxDensity = opts.maxDensity ?? 0.22;
+  const maxDensity = opts.maxDensity ?? 0.16;
   const minGap = opts.minGap ?? 3;
 
   // Document frequency of each stem across the song.
