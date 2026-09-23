@@ -563,9 +563,6 @@ export class GLStage {
     gl.uniform1f(q['uDim'] ?? null, i.dim);
     gl.uniform1f(q['uScrim'] ?? null, i.scrim);
     gl.uniform1f(q['uAberr'] ?? null, hi ? 0.0025 + 0.005 * Math.max(i.kick, i.impact * 0.6) : 0);
-    gl.uniform1f(q['uRim'] ?? null, 0.05 + 0.12 * i.energy + 0.1 * i.section);
-    const light = this.pal[3] ?? [0.95, 0.85, 0.7];
-    gl.uniform3f(q['uRimColor'] ?? null, (light[0] + acc[0]) / 2, (light[1] + acc[1]) / 2, (light[2] + acc[2]) / 2);
     this.blit(null);
 
     if (query && this.timer) {

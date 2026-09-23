@@ -225,8 +225,7 @@ uniform sampler2D uMask;
 uniform float uMaskAmt;
 uniform vec3 uGlow;
 uniform vec2 uRes;
-uniform float uGrainT, uDim, uScrim, uAberr, uRim;
-uniform vec3 uRimColor;
+uniform float uGrainT, uDim, uScrim, uAberr;
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -249,8 +248,6 @@ void main() {
   vec2 q = uv - 0.5;
   q.x *= uRes.x / uRes.y * 0.8;
   col *= mix(1.0, 0.36, smoothstep(0.32, 1.0, length(q) * 1.25));
-  float e = min(uv.y, 1.0 - uv.y);
-  col += uRimColor * uRim * exp(-e * 30.0);
   col += (hash12(floor(gl_FragCoord.xy) + fract(uGrainT) * 917.0) - 0.5) * 0.05;
   col += (hash12(gl_FragCoord.xy * 1.37 + 3.1) - 0.5) / 255.0;
   outColor = vec4(max(col, 0.0), 1.0);
