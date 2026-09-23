@@ -164,17 +164,41 @@ timings just advertises the error.
 - Rows are packed to a target width and scaled to fit from estimated character
   widths, then **measured in the document** and shrunk if the estimate was
   optimistic, so a phrase can never run off the edge of the frame.
-- Entry is anchored to the phrase and the karaoke sweep to the word: the whole
-  composition cascades in together, then the highlight tracks the actual vocal.
-  Waiting for each word to be sung before drawing it leaves the frame half empty.
-- A phrase is told to leave before the next one lands, so a cut reads as a cut
-  rather than as two compositions dissolving through each other.
+- Words are **revealed as they are sung**: the whole phrase is laid out up
+  front, and each word lands in its slot just ahead of its vocal. The sweep
+  inside a word brightens the ink; unsung words are never grey.
+- A held word **undulates** (Apple Music Sing style): letters swell, fan out
+  and lift, and a variable face swells in weight across the hold.
+- Phrases hand over through a shared **seam**, so the exit and the next entry
+  always agree on direction. Choruses arrive on a pull, travel on a push, and
+  the phrase before a chorus is held in a dimmed room first. A leaving phrase
+  **smears**: ghost copies trail it along its travel, like the reel.
 - **Echo trails** replay the entry a few frames late. That temporal lag is what
   reads as motion rather than as a drop shadow.
 - **Glyphs** are scarce on purpose: at most one per line, on a minority of lines,
   scored by how rare the word is within that song.
-- Album art is blurred in a 64px canvas and scaled up by the compositor. Blurring
-  at panel resolution would cost millions of samples per frame; this costs none.
+- The background is a **WebGL2 shader stage** with five looks (aureole, smoke,
+  liquid ink, night city, sunlit), rendered small and upscaled with grain,
+  vignette and rim light. It reacts to kicks and to each hero word landing.
+
+### Songs get their own look
+
+The daemon reads each song's lyrics offline for mood (valence and arousal),
+themes (love, night, fire...) and structure (verse, chorus, bridge). The
+renderer turns that into a look: a rap record gets heavy condensed type that
+slams in over ink or city lights, a sad ballad gets a delicate serif drifting
+up through smoke, a bright song gets warm light leaks. Choruses escalate. Pin
+any of it from the phone remote or the keyboard.
+
+### Render tiers
+
+| Tier | For | What changes |
+|---|---|---|
+| Cinema | a strong GPU | full-res post, fluid ink, god rays, letter-by-letter heroes, blurred 6-copy smear, light spill |
+| Smooth | most GPUs at 60 fps | half-res background at 30 Hz, 3-copy smear, no DOM blur, static glow |
+| Auto | default | each display probes itself once and remembers the answer |
+
+URL pins for iterating: `?fixture=1&look=smoke&preset=slam&tier=smooth`.
 - Composition jitter is seeded from the line text, so a song looks identical
   every time it plays.
 
@@ -189,6 +213,10 @@ timings just advertises the error.
 | `r` / `n` | reload lyrics / try next source |
 | `space` | play-pause |
 | `f` | fullscreen |
+| `q` | cycle render tier: auto / cinema / smooth |
+| `l` | cycle look |
+| `p` | cycle motion preset: auto / calm / kinetic / slam |
+| `Q` | forget the auto-tier probe and measure again |
 
 Offsets are saved per track.
 
@@ -240,7 +268,7 @@ GUI session — so open the app by hand once first.
 | `LYRICROOM_ALLOW_KUGOU` | off | Opt back into KuGou word timings |
 
 State lives in `~/.local/share/lyricroom/` (`cache/`, `art/`, `lyrics/`,
-`offsets.json`) on both platforms — the same path on macOS, deliberately, so a
+`offsets.json`, `settings.json`) on both platforms — the same path on macOS, deliberately, so a
 cache can be copied between machines. Nothing is written into the repository.
 
 ---
