@@ -1,7 +1,7 @@
 /**
  * GLSL for the shader stage. Every look writes into a small offscreen target
  * (960x540 in Cinema, 480x270 in Smooth); the post pass upscales it with
- * grain, vignette and the rest. The looks are soft by design, so the low
+ * vignette and the rest. The looks are soft by design, so the low
  * internal resolution costs nothing you can see and is the whole reason this
  * stays cheap at 4K.
  */
@@ -212,9 +212,9 @@ export const LOOK_FS = {
 } as const;
 
 /**
- * Post: upscale, lens, legibility and film. Replaces what used to be three
- * DOM layers (scrim, grain, vignette), which is two fewer 4K composited
- * layers and grain that is generated rather than tiled.
+ * Post: upscale, lens and legibility. Replaces what used to be three DOM
+ * layers (scrim, grain, vignette). There is no film grain: the frame is kept
+ * clean, and only a one-step dither remains so soft gradients do not band.
  */
 export const POST_FS = /* glsl */ `#version 300 es
 precision highp float;
@@ -225,7 +225,7 @@ uniform sampler2D uMask;
 uniform float uMaskAmt;
 uniform vec3 uGlow;
 uniform vec2 uRes;
-uniform float uGrainT, uDim, uScrim, uAberr;
+uniform float uDim, uScrim, uAberr;
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -248,7 +248,6 @@ void main() {
   vec2 q = uv - 0.5;
   q.x *= uRes.x / uRes.y * 0.8;
   col *= mix(1.0, 0.36, smoothstep(0.32, 1.0, length(q) * 1.25));
-  col += (hash12(floor(gl_FragCoord.xy) + fract(uGrainT) * 917.0) - 0.5) * 0.05;
   col += (hash12(gl_FragCoord.xy * 1.37 + 3.1) - 0.5) / 255.0;
   outColor = vec4(max(col, 0.0), 1.0);
 }`;

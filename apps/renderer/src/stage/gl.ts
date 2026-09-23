@@ -559,7 +559,6 @@ export class GLStage {
     const acc = this.pal[1] ?? [0.9, 0.7, 0.4];
     gl.uniform3f(q['uGlow'] ?? null, acc[0] * 0.42, acc[1] * 0.42, acc[2] * 0.42);
     gl.uniform2f(q['uRes'] ?? null, this.canvas.width, this.canvas.height);
-    gl.uniform1f(q['uGrainT'] ?? null, (i.now / 1000) * 24);
     gl.uniform1f(q['uDim'] ?? null, i.dim);
     gl.uniform1f(q['uScrim'] ?? null, i.scrim);
     gl.uniform1f(q['uAberr'] ?? null, hi ? 0.0025 + 0.005 * Math.max(i.kick, i.impact * 0.6) : 0);

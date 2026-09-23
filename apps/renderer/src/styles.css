@@ -73,7 +73,7 @@ body { position: relative; }
 }
 #art.on { opacity: 1; }
 
-/* The shader stage. When it is running it owns scrim, grain and vignette
+/* The shader stage. When it is running it owns scrim and vignette
  * itself, so the DOM versions of those layers are switched off. */
 #gl {
   position: absolute;
@@ -83,7 +83,6 @@ body { position: relative; }
   display: block;
 }
 #stage.gl #art,
-#stage.gl #grain,
 #stage.gl #vignette { display: none; }
 #stage.gl::after { display: none; }
 
@@ -105,17 +104,6 @@ body { position: relative; }
     color-mix(in srgb, var(--stage) 78%, transparent),
     color-mix(in srgb, var(--stage) 92%, transparent));
   opacity: var(--scrim);
-}
-
-#grain {
-  position: absolute;
-  inset: -50%;
-  background-image: var(--grain-src);
-  background-size: 180px 180px;
-  opacity: 0.055;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  will-change: transform;
 }
 
 #vignette {
@@ -429,5 +417,5 @@ body { position: relative; }
 #overlay b { color: #e8b86d; font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
-  #art, #grain { transition: none; }
+  #art { transition: none; }
 }

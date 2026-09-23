@@ -178,8 +178,8 @@ timings just advertises the error.
 - **Glyphs** are scarce on purpose: at most one per line, on a minority of lines,
   scored by how rare the word is within that song.
 - The background is a **WebGL2 shader stage** with five looks (aureole, smoke,
-  liquid ink, night city, sunlit), rendered small and upscaled with grain
-  and vignette. It reacts to kicks and to each hero word landing.
+  liquid ink, night city, sunlit), rendered small and upscaled with
+  a vignette. It reacts to kicks and to each hero word landing.
 
 ### Songs get their own look
 

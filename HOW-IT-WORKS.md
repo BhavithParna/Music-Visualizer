@@ -349,11 +349,11 @@ advertises the error.
 `renderer/src/stage/gl.ts`, `stage/shaders.ts`, `stage.ts`.
 
 A hand-rolled WebGL2 stage: one look rendered into a small target (960x540 in
-Cinema, 480x270 in Smooth), then one post pass at panel size for grain,
+Cinema, 480x270 in Smooth), then one post pass at panel size for
 vignette, dithering, chromatic aberration on hits (Cinema), and the
 scrim that keeps huge type legible. The looks are soft by design, so the low
 internal resolution costs nothing you can see and is the whole reason this is
-cheap at 4K. The post pass replaced three DOM layers (scrim, grain, vignette).
+cheap at 4K. The post pass replaced three DOM layers (scrim, grain, vignette); there is no film grain now, so the frame stays clean.
 
 | Look | What it is | Picked for |
 |---|---|---|

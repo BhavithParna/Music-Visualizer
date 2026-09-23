@@ -5,25 +5,6 @@ import { GLStage, type StageInputs } from './stage/gl.js';
 
 export type { StageInputs } from './stage/gl.js';
 
-/** Tiled film grain for the canvas fallback, generated once. */
-function grainDataUrl(size = 180): string {
-  const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
-  const ctx = c.getContext('2d');
-  if (!ctx) return '';
-  const img = ctx.createImageData(size, size);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = 110 + Math.random() * 90;
-    img.data[i] = v;
-    img.data[i + 1] = v;
-    img.data[i + 2] = v;
-    img.data[i + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  return `url("${c.toDataURL('image/png')}")`;
-}
-
 const ART_PX = 64;
 
 /**
@@ -71,12 +52,11 @@ function paletteArt(p: StagePalette): HTMLCanvasElement {
 /**
  * The background. A WebGL2 shader stage when the GPU offers one; otherwise the
  * original treatment -- a 64 px blurred cover the compositor scales up, with
- * DOM grain and vignette -- which still looks right, just without the looks.
+ * a DOM vignette -- which still looks right, just without the looks.
  */
 export class Stage {
   private canvas = document.getElementById('art') as HTMLCanvasElement;
   private ctx = this.canvas.getContext('2d');
-  private grainEl = document.getElementById('grain') as HTMLElement;
   private stageEl = document.getElementById('stage') as HTMLElement;
   private gl: GLStage | null;
   private phase = 0;
@@ -95,7 +75,6 @@ export class Stage {
       this.stageEl.classList.add('gl');
     } else {
       glCanvas.remove();
-      document.documentElement.style.setProperty('--grain-src', grainDataUrl());
     }
     this.applyAll();
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>)['__lrStage'] = this;
@@ -202,8 +181,6 @@ export class Stage {
     this.canvas.style.transform =
       `translate(-50%, -50%) translate3d(${dx.toFixed(2)}%, ${dy.toFixed(2)}%, 0) ` +
       `scale(${(fill * breathe).toFixed(3)})`;
-    this.grainEl.style.transform =
-      `translate3d(${(Math.sin(this.phase * 11) * 1.2).toFixed(2)}%, ${(Math.cos(this.phase * 9) * 1.2).toFixed(2)}%, 0)`;
     this.stageEl.style.setProperty('--stage-dim', i.dim.toFixed(3));
   }
 }
