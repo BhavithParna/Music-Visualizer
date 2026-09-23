@@ -1,5 +1,10 @@
 @import '@fontsource/archivo-black/400.css';
 @import '@fontsource-variable/inter/index.css';
+@import '@fontsource/anton/400.css';
+@import '@fontsource/league-gothic/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
+@import '@fontsource-variable/fraunces/wght.css';
+@import '@fontsource-variable/bricolage-grotesque/index.css';
 
 :root {
   /* Overwritten per track from the album-art palette. */
@@ -14,8 +19,22 @@
    * near-flat gradient with no shape left; this keeps it soft but present. */
   --art-blur: 1px;
 
-  --hero-family: 'Archivo Black', 'Inter Display', 'Inter Variable', system-ui, sans-serif;
+  --hero-family: 'Archivo Black', 'Inter Variable', system-ui, sans-serif;
+  --hero-weight: 400;
+  --hero-style: normal;
+  --hero-tracking: -0.03em;
+  --support-family: 'Instrument Serif', 'Inter Variable', system-ui, serif;
+  --support-weight: 400;
+  --support-style: italic;
+  --support-tracking: -0.01em;
+  --connective-family: 'Inter Variable', system-ui, sans-serif;
+  --connective-weight: 800;
+  --connective-style: normal;
+  --connective-tracking: -0.02em;
   --body-family: 'Inter Variable', 'Inter Display', system-ui, sans-serif;
+  /* The unsung part of a word: the same ink, held back -- never grey. */
+  --soft: color-mix(in srgb, var(--ink) 72%, transparent);
+  --glow: var(--accent);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -54,6 +73,30 @@ body { position: relative; }
 }
 #art.on { opacity: 1; }
 
+/* The shader stage. When it is running it owns scrim, grain and vignette
+ * itself, so the DOM versions of those layers are switched off. */
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#stage.gl #art,
+#stage.gl #grain,
+#stage.gl #vignette { display: none; }
+#stage.gl::after { display: none; }
+
+#stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  opacity: var(--stage-dim, 0);
+  pointer-events: none;
+}
+
 #stage::after {
   content: '';
   position: absolute;
@@ -91,6 +134,8 @@ body { position: relative; }
   overflow: hidden;
   z-index: 2;
   pointer-events: none;
+  contain: strict;
+  transform-origin: 50% 50%;
 }
 
 /*
@@ -110,7 +155,7 @@ body { position: relative; }
   gap: 0.02em;
   /* The margin lives here, not on #type: an absolutely positioned child is
    * placed against the padding box, so padding up there would buy nothing. */
-  padding: 4vmin 5vmin;
+  padding: 5vmin 8vmin;
   transform-origin: 50% 50%;
   will-change: transform, opacity, filter;
 }
@@ -131,28 +176,68 @@ body { position: relative; }
 .row[data-align='center'] { justify-content: center; }
 .row[data-align='right']  { justify-content: flex-end; }
 .row + .row { margin-top: -0.1em; }
+/* The second voice of a duet lives on the other side of the frame. */
+.line[data-voice='1'] .row { justify-content: flex-end; }
+
+/* Background vocals: a small layer in the lower third, under the lead. */
+.line[data-bg='1'] {
+  justify-content: flex-end;
+  padding-bottom: 9vmin;
+  z-index: 0;
+}
+
+/* Smear ghosts: copies of an exiting phrase, trailing it. */
+.line.ghost { pointer-events: none; will-change: transform, opacity; }
+.line.ghost .face { opacity: 0.85; }
+
+/* A chorus hero, huge and faint behind the phrase. */
+.echo-layout {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  white-space: nowrap;
+  font-family: var(--hero-family);
+  font-weight: var(--hero-weight);
+  font-style: var(--hero-style);
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
 
 .word {
   position: relative;
   display: inline-block;
   white-space: pre;
   font-family: var(--hero-family);
-  font-weight: 400;
-  letter-spacing: -0.03em;
+  font-weight: var(--hero-weight);
+  font-style: var(--hero-style);
+  letter-spacing: var(--hero-tracking);
   transform-origin: 50% 60%;
   will-change: transform, opacity;
   /* The glyph itself is painted by .face; .word only carries layout + motion. */
 }
 
-.word[data-tier='support'],
+.word[data-tier='support'] {
+  font-family: var(--support-family);
+  font-weight: var(--support-weight);
+  font-style: var(--support-style);
+  letter-spacing: var(--support-tracking);
+}
 .word[data-tier='connective'] {
-  font-family: var(--body-family);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--connective-family);
+  font-weight: var(--connective-weight);
+  font-style: var(--connective-style);
+  letter-spacing: var(--connective-tracking);
 }
 
 .face {
-  display: block;
+  /* Inline, so a glyph after it sits beside the word on its baseline instead
+   * of wrapping underneath it. */
+  display: inline-block;
+  position: relative;
+  z-index: 1;
   color: var(--ink);
   will-change: opacity, filter;
   /*
@@ -167,13 +252,35 @@ body { position: relative; }
   margin: -0.2em 0 -0.36em;
 }
 
-/* Karaoke sweep: the sung part is solid, the rest is held back. */
+/* Karaoke sweep with a soft 0.18em feather: the sung part is full ink, the
+ * rest is the same ink held back. It brightens as it is sung; it never greys. */
 .face.sweep {
-  background-image: linear-gradient(90deg, var(--ink) 0 var(--p), var(--dim) var(--p) 100%);
+  background-image: linear-gradient(90deg,
+    var(--ink) calc(var(--s, 0) * (100% + 0.18em) - 0.18em),
+    var(--soft) calc(var(--s, 0) * (100% + 0.18em)));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+/* Cinema heroes are split into letters, each lit on its own. */
+.face.letters { color: var(--ink); }
+.face .ch { display: inline-block; white-space: pre; transform-origin: 50% 80%; will-change: transform, opacity; }
+
+/* Glow as its own composited layer behind the face, so changing its strength
+ * is an opacity change, never a repaint of a blurred shadow. */
+.halo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: transparent;
+  text-shadow:
+    0 0 0.05em color-mix(in srgb, var(--glow) 85%, transparent),
+    0 0 0.22em color-mix(in srgb, var(--glow) 45%, transparent);
+  pointer-events: none;
+  will-change: opacity;
+  z-index: 0;
+}
+.halo.flat { text-shadow: 0 0 0.16em color-mix(in srgb, var(--glow) 50%, transparent); }
 
 /*
  * Echo trail. Copies sit behind the face at the same origin and replay the
@@ -198,21 +305,49 @@ body { position: relative; }
   inset: -0.06em -0.14em;
   background: var(--ink);
   transform-origin: left center;
+  transition: background-color 300ms;
   will-change: transform;
   z-index: 0;
 }
+.word[data-invert='1'] .box[data-from='right'] { transform-origin: right center; }
+.line[data-chorus='1'] .word[data-invert='1'] .box { background: var(--accent); }
 .word[data-invert='1'] .face { position: relative; z-index: 1; color: var(--stage); }
 .word[data-invert='1'] .face.sweep { background-image: none; color: var(--stage); }
 
 .glyph {
   display: inline-block;
+  position: relative;
+  z-index: 1;
   font-family: 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif;
-  font-size: 0.52em;
-  vertical-align: 0.24em;
-  margin-left: 0.14em;
+  font-style: normal;
+  font-size: 0.42em;
+  vertical-align: 0.34em;
+  margin-left: 0.12em;
   transform-origin: 50% 70%;
   will-change: transform, opacity;
   filter: saturate(0.82) contrast(1.05);
+}
+
+/* ----------------------------------------------------------------- dots --- */
+
+#dots {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 2.4vmin;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+#dots span {
+  width: 2.2vmin;
+  height: 2.2vmin;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 2vmin color-mix(in srgb, var(--accent) 60%, transparent);
+  will-change: transform;
 }
 
 /* ----------------------------------------------------------------- card --- */

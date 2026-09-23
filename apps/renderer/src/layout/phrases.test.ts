@@ -140,4 +140,14 @@ describe('buildPhrases', () => {
     ]);
     expect(phrases[0]!.endMs - phrases[0]!.startMs).toBeGreaterThanOrEqual(160);
   });
+
+  it('does not let an ad-lib cut the lead phrase short', () => {
+    const phrases = buildPhrases([
+      line(run(['lead', 'holds', 'this'], 400, 0)),
+      line([['adlib', 500, 900]], { background: true }),
+    ]);
+    const lead = phrases.find((p) => !p.background)!;
+    // The background line starts mid-phrase but is its own layer.
+    expect(lead.endMs).toBe(1200);
+  });
 });

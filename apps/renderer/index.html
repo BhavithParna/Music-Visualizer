@@ -12,11 +12,13 @@
   </head>
   <body>
     <div id="stage" aria-hidden="true">
+      <canvas id="gl"></canvas>
       <canvas id="art" width="64" height="64"></canvas>
       <div id="grain"></div>
       <div id="vignette"></div>
     </div>
     <main id="type"></main>
+    <div id="dots" aria-hidden="true"><span></span><span></span><span></span></div>
     <div id="card" hidden></div>
     <button id="fsToggle" type="button" aria-label="Enter fullscreen" title="Fullscreen (f)">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"

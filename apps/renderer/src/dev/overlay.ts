@@ -10,6 +10,13 @@ export interface OverlayInfo {
   online: boolean;
   active: number;
   track: string;
+  tier: string;
+  look: string;
+  reason: string;
+  section: string;
+  beat: string;
+  gpu: string;
+  mood: string;
 }
 
 const mmss = (ms: number): string => {
@@ -52,7 +59,11 @@ export class Overlay {
       `pos ${mmss(info.posMs).padStart(7)}  offset ${info.offsetMs}ms\n` +
       `lyr ${info.level.padEnd(8)} ${info.lines} lines\n` +
       `src ${info.provider || '--'}\n` +
-      `ws  ${info.online ? 'up' : 'DOWN'}  rtt ${info.rtt.toFixed(1)}ms`;
+      `ws  ${info.online ? 'up' : 'DOWN'}  rtt ${info.rtt.toFixed(1)}ms\n` +
+      `gfx ${info.tier}  gpu ${info.gpu}\n` +
+      `look ${info.look}\n` +
+      `why ${info.reason}   mood ${info.mood}\n` +
+      `sec ${info.section}   beat ${info.beat}`;
   }
 
   get currentFps(): number {

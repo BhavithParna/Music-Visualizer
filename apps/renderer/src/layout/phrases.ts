@@ -120,10 +120,15 @@ export function splitIntoPhrases(line: LyricLine, lineIndex: number): Phrase[] {
  */
 export function buildPhrases(lines: LyricLine[]): Phrase[] {
   const all = lines.flatMap((line, i) => splitIntoPhrases(line, i));
-  for (let i = 0; i < all.length - 1; i += 1) {
-    const cur = all[i]!;
-    const latest = all[i + 1]!.startMs - HANDOFF_MS;
-    if (cur.endMs > latest) cur.endMs = Math.max(cur.startMs + MIN_HOLD_MS, latest);
+  // Background vocals are a separate layer on screen, so the main voice hands
+  // off only to the main voice: an ad-lib must not cut the lead phrase short.
+  for (const layer of [false, true]) {
+    const chain = all.filter((p) => Boolean(p.background) === layer);
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      const cur = chain[i]!;
+      const latest = chain[i + 1]!.startMs - HANDOFF_MS;
+      if (cur.endMs > latest) cur.endMs = Math.max(cur.startMs + MIN_HOLD_MS, latest);
+    }
   }
   return all;
 }

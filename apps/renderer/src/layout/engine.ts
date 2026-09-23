@@ -61,9 +61,8 @@ function rng(seed: number): () => number {
 const clean = (t: string): string => t.trim();
 const isWeak = (t: string): boolean => WEAK.has(clean(t).toLowerCase().replace(/[^a-z']/g, ''));
 
-/** Rough advance width of a heavy grotesque, in em per character. */
+/** Rough advance width of a heavy grotesque, in em per character, when no face is given. */
 const CHAR_EM = 0.6;
-const wordWidth = (w: LaidWord): number => Math.max(1, clean(w.text).length) * CHAR_EM * w.scale;
 
 export interface LayoutOptions {
   /** Viewport aspect, used to pick how much horizontal room a row may use. */
@@ -73,6 +72,16 @@ export interface LayoutOptions {
   invert?: boolean;
   /** 0..1, how loud the section is; louder lines get bigger heroes. */
   intensity?: number;
+  /**
+   * Mean advance per character of each tier's face, in em. A condensed face
+   * like League Gothic fits almost twice the letters of Archivo Black, so the
+   * first size guess has to know which one it is setting.
+   */
+  charEm?: Partial<Record<Tier, number>>;
+  /** Multiplier on the size ceiling: verse < 1 < chorus. */
+  sizeBoost?: number;
+  /** Extra seed material, so a repeated chorus line does not re-use one layout. */
+  seedSalt?: string;
 }
 
 /**
@@ -131,7 +140,9 @@ export function layoutLine(line: LyricLine, opts: LayoutOptions = {}): LaidLine 
       .map(({ i }) => i),
   );
 
-  const seed = hash(line.text);
+  const charEm = (t: Tier): number => opts.charEm?.[t] ?? CHAR_EM;
+  const wordWidth = (w: LaidWord): number => Math.max(1, clean(w.text).length) * charEm(w.tier) * w.scale;
+  const seed = hash(line.text + (opts.seedSalt ?? ''));
   const rand = rng(seed);
   const intensity = opts.intensity ?? 0.5;
 
@@ -196,15 +207,16 @@ export function layoutLine(line: LyricLine, opts: LayoutOptions = {}): LaidLine 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const vmin = Math.min(vw, vh) / 100;
-  const availW = (vw * 0.9) / vmin;
+  const availW = (vw * 0.84) / vmin;
   const availH = (vh * 0.84) / vmin;
 
   // A one- or two-word line is the reference look at its most striking, so the
   // ceiling rises as the line gets shorter instead of being a flat cap.
   const ceiling = words.length <= 1 ? 46 : words.length <= 2 ? 40 : words.length <= 4 ? 32 : 27;
+  const boost = opts.sizeBoost ?? 1;
   const baseSize = Math.max(
     4,
-    Math.min(availW / widest, availH / Math.max(totalHeight, 0.6), opts.portrait ? ceiling * 1.12 : ceiling),
+    Math.min(availW / widest, availH / Math.max(totalHeight, 0.6), (opts.portrait ? ceiling * 1.12 : ceiling) * boost),
   );
 
   return { rows, baseSize };
