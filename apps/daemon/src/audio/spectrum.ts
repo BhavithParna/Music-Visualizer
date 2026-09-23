@@ -1,9 +1,6 @@
-import { spawn, execFile, type ChildProcess } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { monoNow } from '../clock.js';
 import { fft, hann } from './fft.js';
-
-const execFileP = promisify(execFile);
 
 const FFT_SIZE = 2048;
 const SAMPLE_RATE = 44100;
@@ -28,16 +25,6 @@ function bandEdges(): number[] {
   return edges;
 }
 
-async function defaultMonitor(): Promise<string | null> {
-  try {
-    const { stdout } = await execFileP('pactl', ['get-default-sink'], { timeout: 3000 });
-    const sink = stdout.trim();
-    return sink ? `${sink}.monitor` : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Optional audio-reactivity feed.
  *
@@ -45,7 +32,12 @@ async function defaultMonitor(): Promise<string | null> {
  * getDisplayMedia, so the spectrum has to come from outside the browser. We read
  * the default sink's monitor with pw-record and push bands over the socket.
  *
- * Purely decorative: if pw-record or pactl is missing, the visuals simply run
+ * stream.capture.sink makes WirePlumber link us to the default sink's monitor
+ * (and follow it when the output changes). Never pass `--target <sink>.monitor`:
+ * that is a pulse-only name, native PipeWire falls back to the default mic, and
+ * opening a Bluetooth headset mic flips it into the low-quality hands-free profile.
+ *
+ * Purely decorative: if pw-record is missing, the visuals simply run
  * without reactivity rather than failing.
  */
 export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
@@ -113,13 +105,14 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
     }
   };
 
-  const launch = async (): Promise<void> => {
+  const launch = (): void => {
     if (stopped) return;
-    const monitor = await defaultMonitor();
-    if (!monitor || stopped) return;
     const child = spawn(
       'pw-record',
-      ['--target', monitor, '--rate', String(SAMPLE_RATE), '--channels', '1', '--format', 'f32', '-'],
+      [
+        '-P', '{ stream.capture.sink=true node.name=lyricroom-spectrum }',
+        '--rate', String(SAMPLE_RATE), '--channels', '1', '--format', 'f32', '-',
+      ],
       { stdio: ['ignore', 'pipe', 'ignore'] },
     );
     proc = child;
@@ -127,14 +120,13 @@ export function startSpectrum(listener: SpectrumListener): SpectrumHandle {
     const restart = (): void => {
       if (stopped || proc !== child) return;
       proc = null;
-      // The default sink changes when headphones are plugged in; just reconnect.
-      retry = setTimeout(() => void launch(), 4000);
+      retry = setTimeout(launch, 4000);
     };
     child.on('exit', restart);
     child.on('error', restart);
   };
 
-  void launch();
+  launch();
 
   return {
     stop(): void {
