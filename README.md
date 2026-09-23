@@ -2,7 +2,7 @@
 
 An always-on kinetic-typography lyric visualizer for a room display. Whatever you
 play, the lyrics appear word by word in huge grotesque type over blurred album
-art, with echo trails, a karaoke sweep, and the occasional glyph or inverted hook
+art, with a karaoke sweep, and the occasional glyph or inverted hook
 word.
 
 Runs on Linux and macOS. Only the player adapter differs between them; the
@@ -172,9 +172,7 @@ timings just advertises the error.
 - Phrases hand over through a shared **seam**, so the exit and the next entry
   always agree on direction. Choruses arrive on a pull, travel on a push, and
   the phrase before a chorus is held in a dimmed room first. A leaving phrase
-  **smears**: ghost copies trail it along its travel, like the reel.
-- **Echo trails** replay the entry a few frames late. That temporal lag is what
-  reads as motion rather than as a drop shadow.
+  **smears**: a few faint copies close behind it blend into one soft streak.
 - **Glyphs** are scarce on purpose: at most one per line, on a minority of lines,
   scored by how rare the word is within that song.
 - The background is a **WebGL2 shader stage** with five looks (aureole, smoke,
@@ -194,8 +192,8 @@ any of it from the phone remote or the keyboard.
 
 | Tier | For | What changes |
 |---|---|---|
-| Cinema | a strong GPU | full-res post, fluid ink, god rays, letter-by-letter heroes, blurred 6-copy smear, light spill |
-| Smooth | most GPUs at 60 fps | half-res background at 30 Hz, 3-copy smear, no DOM blur, static glow |
+| Cinema | a strong GPU | full-res post, fluid ink, god rays, letter-by-letter heroes, blurred 4-copy smear, light spill |
+| Smooth | most GPUs at 60 fps | half-res background at 30 Hz, 2-copy smear, no DOM blur, static glow |
 | Auto | default | each display probes itself once and remembers the answer |
 
 URL pins for iterating: `?fixture=1&look=smoke&preset=slam&tier=smooth`.

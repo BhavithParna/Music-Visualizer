@@ -34,8 +34,6 @@ export const SEAM_UP: Seam = { kind: 'up', x: 0, y: -1 };
 
 /** Stagger between letters of the hero in Cinema: fluid, not dramatic. */
 const LETTER_STAGGER_MS = 16;
-/** Echo trail copies behind each word as it arrives. */
-const ECHO_LAG_MS = 44;
 const GLYPH_DELAY_MS = 90;
 const GLYPH_MS = 320;
 /** Words held this long get the Apple Music Sing "undulate". */
@@ -53,7 +51,6 @@ interface WordView {
   el: HTMLElement;
   face: HTMLElement;
   halo: HTMLElement | null;
-  echoes: HTMLElement[];
   box: HTMLElement | null;
   glyph: HTMLElement | null;
   letters: HTMLElement[];
@@ -132,7 +129,7 @@ export class LineView {
     this.outMs = opts.motion.outMs;
     const cinema = opts.tier === 'cinema';
     const lite = opts.quality === 'lite';
-    this.ghostCount = opts.background ? 0 : cinema ? Math.min(6, opts.motion.smear) : Math.min(3, opts.motion.smear);
+    this.ghostCount = opts.background ? 0 : cinema ? Math.min(4, opts.motion.smear) : Math.min(2, opts.motion.smear);
 
     const root = document.createElement('div');
     root.className = 'line';
@@ -176,17 +173,6 @@ export class LineView {
         el.style.fontSize = `${laidWord.scale}em`;
         el.style.opacity = '0';
         if (laidWord.invert) el.dataset['invert'] = '1';
-
-        const echoes: HTMLElement[] = [];
-        const echoN = lite || laidWord.tier === 'connective' ? 0 : cinema ? 4 : 2;
-        for (let i = 0; i < echoN; i += 1) {
-          const echo = document.createElement('span');
-          echo.className = i % 2 === 1 ? 'echo outline' : 'echo';
-          echo.textContent = laidWord.text;
-          echo.style.opacity = '0';
-          el.appendChild(echo);
-          echoes.push(echo);
-        }
 
         let halo: HTMLElement | null = null;
         if (laidWord.tier === 'hero' || (cinema && laidWord.tier === 'support')) {
@@ -255,7 +241,7 @@ export class LineView {
           : Math.min(1.2, Math.max(0.5, held / 2000)) * (isLineEnd ? 1.6 : 1);
 
         const view: WordView = {
-          el, face, halo, echoes, box, glyph, letters, laid: laidWord,
+          el, face, halo, box, glyph, letters, laid: laidWord,
           enterAt, inMs, rise: tierRise[laidWord.tier], startMs, endMs, emph, last: {},
         };
         this.views.push(view);
@@ -357,6 +343,11 @@ export class LineView {
   }
 
   /** The line's own transform at exit progress `x` (0 = at rest). */
+  /** The phrase's own opacity at exit progress `x`. */
+  private exitOpacity(x: number): number {
+    return this.opts.exit.kind === 'rack' ? 1 - smoothstep(0.65, 1, x) : 1 - smoothstep(0.08, 0.58, x);
+  }
+
   private lineTransform(x: number, stretch = 0): string {
     const { exit, motion, tiltX, tiltY } = this.opts;
     let tx = 0;
@@ -394,7 +385,7 @@ export class LineView {
       g.setAttribute('aria-hidden', 'true');
       for (const row of Array.from(this.el.querySelectorAll(':scope > .row'))) {
         const clone = row.cloneNode(true) as HTMLElement;
-        for (const junk of Array.from(clone.querySelectorAll('.echo, .halo, .glyph, .box'))) junk.remove();
+        for (const junk of Array.from(clone.querySelectorAll('.halo, .glyph, .box'))) junk.remove();
         if (cinema) {
           // Static blur on each small word box, rasterised once; animating a
           // filter on a full-frame layer is what would cost a 4K frame.
@@ -425,9 +416,7 @@ export class LineView {
     if (punch > 0.0005) transform += ` scale(${(1 + punch).toFixed(4)})`;
     setStyle(this.el, 'transform', transform, this.lastLine, 't');
 
-    let opacity: number;
-    if (exit.kind === 'rack') opacity = 1 - smoothstep(0.65, 1, x);
-    else opacity = 1 - smoothstep(0.12, 0.62, x);
+    let opacity = this.exitOpacity(x);
     if (this.opts.background) opacity *= 0.6;
     setStyle(this.el, 'opacity', opacity.toFixed(3), this.lastLine, 'o');
 
@@ -453,14 +442,19 @@ export class LineView {
         this.frozen = true;
       }
       this.buildGhosts();
-      const lag = 0.09;
-      for (let k = 0; k < this.ghosts.length; k += 1) {
+      // Copies sit a few frames behind, close enough to overlap into one
+      // continuous streak rather than a row of stamps, and each is never
+      // brighter than the phrase was at the point it is trailing.
+      const lag = 0.045;
+      const n = this.ghosts.length;
+      const rise = smoothstep(0, 0.12, x);
+      for (let k = 0; k < n; k += 1) {
         const g = this.ghosts[k]!;
         const xk = clamp01(x - (k + 1) * lag);
-        const stretch = 0.12 * (k + 1) * Math.sin(Math.PI * clamp01(x));
+        const stretch = 0.05 * (k + 1) * Math.sin(Math.PI * clamp01(x));
         g.style.transform = this.lineTransform(xk, stretch);
-        const life = Math.sin(Math.PI * clamp01(x / 0.9)) * (1 - smoothstep(0.6, 0.95, x) * 0.5);
-        g.style.opacity = ((0.4 - k * 0.055) * life).toFixed(3);
+        const weight = 0.3 * (1 - (k + 1) / (n + 1));
+        g.style.opacity = (weight * this.exitOpacity(xk) * rise).toFixed(3);
       }
       // Once the phrase is leaving, the words inside it stop moving on their
       // own; the whole block travels as one piece.
@@ -595,26 +589,6 @@ export class LineView {
       const bassLift = cinema ? 1 + audio.bass * 0.3 : 1;
       const o = Math.min(1, g * live * bassLift * Math.min(1, inT * 2) * (1 + this.opts.section * 0.4));
       setStyle(view.halo, 'opacity', o.toFixed(3), last, 'h');
-    }
-
-    for (let i = 0; i < view.echoes.length; i += 1) {
-      const echo = view.echoes[i]!;
-      const lagT = clamp01((posMs - enterAt - (i + 1) * ECHO_LAG_MS) / inMs);
-      const le = power4Out(lagT);
-      const { entry } = this.opts;
-      let tr: string;
-      if (entry.kind === 'up' || entry.kind === 'left') {
-        // Relative to the word, the lagged copy sits behind it along the travel.
-        const k = (le - e) * view.rise * 1.6;
-        tr = `translate3d(${(entry.x * k).toFixed(3)}em, ${(entry.y * k).toFixed(3)}em, 0) scale(${(1 + (i + 1) * 0.02 * (1 - le)).toFixed(4)})`;
-      } else {
-        const sNow = entry.kind === 'push' ? 0.75 + 0.25 * e : 1.25 - 0.25 * e;
-        const sLag = entry.kind === 'push' ? 0.75 + 0.25 * le : 1.25 - 0.25 * le;
-        tr = `scale(${(sLag / sNow).toFixed(4)})`;
-      }
-      echo.style.transform = tr;
-      // Zero at rest, so the trail is motion and never a permanent shadow.
-      echo.style.opacity = lagT <= 0 ? '0' : ((0.34 - i * 0.07) * Math.sin(Math.PI * le)).toFixed(3);
     }
 
     if (view.box) {

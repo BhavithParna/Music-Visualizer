@@ -270,23 +270,6 @@ body { position: relative; }
 }
 .halo.flat { text-shadow: 0 0 0.16em color-mix(in srgb, var(--glow) 50%, transparent); }
 
-/*
- * Echo trail. Copies sit behind the face at the same origin and replay the
- * same motion a few frames late, which is what reads as motion blur rather
- * than as a static drop shadow.
- */
-.echo {
-  position: absolute;
-  inset: 0;
-  color: var(--accent);
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-.echo.outline {
-  color: transparent;
-  -webkit-text-stroke: 0.018em var(--accent);
-}
-
 /* Inverted hook word: a cream box wipes open, then dark type fades in. */
 .word[data-invert='1'] .box {
   position: absolute;

@@ -299,9 +299,8 @@ last word of a line gets 1.6x. A variable hero face (Fraunces, Bricolage) also
 swells in weight across the hold, with its box locked at the heaviest weight in
 `fitToFrame` so the swell cannot shove its neighbours along the row.
 
-**Echo trails** replay the entry a little late, positioned relative to the word
-along its travel. Their opacity follows `sin(pi * progress)`, so they are
-exactly zero at rest and never become a drop shadow.
+Words land clean, with no trailing copies on the way in. Per-word echo
+trails were tried and read as stamped duplicates, not motion.
 
 ### Seams: how one phrase hands to the next
 
@@ -321,9 +320,11 @@ boundaries for calm songs. Because it is planned rather than chained at spawn
 time, seeking into the middle of a song produces exactly the frame playing
 through to it would have.
 
-**The smear.** A leaving phrase travels along its seam, and 3 (Smooth) to 6
-(Cinema) ghost copies trail it, each 9% of the exit further behind, stretched
-along the travel. It is the reel's signature. Ghosts are cloned once when the
+**The smear.** A leaving phrase travels along its seam, and 2 (Smooth) to 4
+(Cinema) ghost copies trail it, each 4.5% of the exit further behind, so they
+overlap into one soft streak. A ghost is never brighter than the phrase was at
+the point it trails, and it tops out at 30% of that. Spaced wider and brighter,
+they read as a row of stamps, which looks like dropped frames. Ghosts are cloned once when the
 exit starts, and in Cinema each ghost word carries a small static blur.
 Blurring small word boxes once is cheap; animating a filter on a full-frame
 layer is what would cost a 4K frame. The exit always renders from the phrase's
@@ -448,7 +449,7 @@ lexicon-based on purpose, so no network call and no model:
 
 The renderer turns that into a `Theme` (`renderer/src/theme.ts`), the way the
 Cotodama Lyric Speaker does: intense songs get the **Slam** preset (Anton or
-League Gothic, oversized punch-in arrivals, leftward travel, 6-copy smear);
+League Gothic, oversized punch-in arrivals, leftward travel, 4-copy smear);
 dark slow songs get **Calm** (Fraunces with its weight swell, Instrument Serif
 italic supports, slow rise, rack-focus cuts); bright songs get **Kinetic**
 (Archivo Black or Bricolage with italic serif supports). The themes pick the
@@ -463,9 +464,9 @@ pin any part of it.
 ## 10. Render tiers
 
 `renderer/src/quality.ts`. **Cinema** is the full look: full-res post pass,
-fluid ink, god rays, letter-split heroes, 6-copy blurred smear, light spill,
+fluid ink, god rays, letter-split heroes, 4-copy blurred smear, light spill,
 chromatic aberration, echo layout and background-vocal layer. **Smooth** holds
-60 fps on integrated graphics: half-res post, a 30 Hz background, 3 unblurred
+60 fps on integrated graphics: half-res post, a 30 Hz background, 2 unblurred
 ghosts, no letter split, no DOM blur anywhere, a static glow.
 
 The daemon stores the choice (`settings.json`) and every surface follows it.
